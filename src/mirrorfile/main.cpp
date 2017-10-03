@@ -32,7 +32,6 @@ namespace
         }
         // reverse bytes
         std::reverse(buf, buf + byte_width);
-
     }
 }
 
@@ -107,15 +106,6 @@ int main(int argc, char* argv[])
         uint32_t next_read_size = byte_width;
         size_t read_size = 0;
         size_t write_size = 0;
-
-        // read the xor value from the file beginning
-        row.resize(next_read_size);
-        read_size = fread(&row[0], 1, next_read_size, file_in_handle.get());
-        const int file_read_err = ferror(file_in_handle.get());
-        if (read_size < next_read_size) {
-            __asm int 3
-            throw std::system_error{ file_read_err, std::system_category(), file_in_handle.path() };
-        }
 
         ReadBufSharedPtr read_buf_ptr = ReadBufSharedPtr(new uint8_t[next_read_size], std::default_delete<uint8_t[]>());
 
