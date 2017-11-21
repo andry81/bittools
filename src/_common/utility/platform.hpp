@@ -1,5 +1,7 @@
 #pragma once
 
+#include "utility/preprocessor.hpp"
+
 // linux, also other platforms (Hurd etc) that use GLIBC, should these really have their own config headers though?
 #if defined(linux) || defined(__linux) || defined(__linux__) || defined(__GNU__) || defined(__GLIBC__)
 #  define UTILITY_PLATFORM_LINUX
@@ -60,4 +62,18 @@
 #   define UTILITY_COMPILER_CXX_VERSION _MSC_VER
 #else
 #   error "Unknown compiler"
+#endif
+
+#if !defined(_DEBUG) && defined(ENABLE_FORCE_INLINE) && !defined(DISABLE_FORCE_INLINE)
+#define FORCE_INLINE __forceinline
+#else
+#define FORCE_INLINE inline
+#endif
+
+#if defined(_DEBUG) || !defined(DISABLE_BUILTIN_MAINTAIN_SUPPORT_IN_RELEASE)
+#define BUILTIN_MAINTAIN_OR_PASS_TRUE(x) !!(x)
+#define BUILTIN_MAINTAIN_OR_PASS_FALSE(x) !(x)
+#else
+#define BUILTIN_MAINTAIN_OR_PASS_TRUE(x) (true)
+#define BUILTIN_MAINTAIN_OR_PASS_FALSE(x) (false)
 #endif

@@ -17,16 +17,7 @@ namespace utility {
 
 void debug_break(bool condition)
 {
-    // avoid signal if not under debugger
-    if (condition && is_under_debugger()) {
-#if defined(UTILITY_COMPILER_CXX_MSC)
-        __debugbreak(); // won't require debug symbols to show the call stack, when the DebugBreak() will require system debug symbols to show the call stack correctly
-#elif defined(UTILITY_PLATFORM_POSIX)
-        signal(SIGTRAP, signal_handler);
-#else
-#error debug_break is not supported for this platform
-#endif
-    }
+    DEBUG_BREAK(condition && is_under_debugger()); // avoid signal if not under debugger
 }
 
 bool is_under_debugger()

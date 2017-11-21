@@ -1,26 +1,180 @@
 #pragma once
 
+#include "utility/platform.hpp"
 #include "tackle/file_handle.hpp"
 
+#ifdef UTILITY_COMPILER_CXX_MSC
+#include <intrin.h>
+#else
+#include <x86intrin.h>  // Not just <immintrin.h> for compilers other than icc
+#endif
+
+#include <boost/preprocessor/cat.hpp>
+#include <boost/format.hpp>
+
 #include <bitset>
+#include <limits>
+
+#include <sstream>
+#include <iomanip>
 
 
 #define if_break(x) if(!(x)); else switch(0) case 0: default:
+#define if_break2(label, x) if(!(x)) label:; else switch(0) case 0: default:
 
 #define SCOPED_TYPEDEF(type_, typedef_) typedef struct { typedef type_ type; } typedef_
+
+#define INT32_LOG2(x) ::utility::int32_log2<x>::value
+#define UINT32_LOG2(x) ::utility::uint32_log2<x>::value
+
+#if defined(ENABLE_POF2_DEFINITIONS) && !defined(DISABLE_POF2_DEFINITIONS)
+
+#define INT32_MULT_POF2(x, y) int32_t(int32_t(x) << INT32_LOG2(y))
+#define UINT32_MULT_POF2(x, y) uint32_t(uint32_t(x) << UINT32_LOG2(y))
+
+#define INT32_DIV_POF2(x, y) int32_t(int32_t(x) >> INT32_LOG2(y))
+#define UINT32_DIV_POF2(x, y) uint32_t(uint32_t(x) >> UINT32_LOG2(y))
+
+#define INT32_DIVREM_POF2(x, y) ::utility::divrem<int32_t>{ int32_t(x) >> INT32_LOG2(y), int32_t(x) & ((y) - 1) }
+#define UINT32_DIVREM_POF2(x, y) ::utility::divrem<uint32_t>{ uint32_t(x) >> UINT32_LOG2(y), uint32_t(x) & ((y) - 1) }
+
+#else
+
+#define INT32_MULT_POF2(x, y) int32_t(int32_t(x) * (y)) //(int32_t(x) * ::utility::int32_pof2<y>::value)
+#define UINT32_MULT_POF2(x, y) uint32_t(uint32_t(x) * (y)) //(uint32_t(x) * ::utility::uint32_pof2<y>::value)
+
+#define INT32_DIV_POF2(x, y) int32_t(int32_t(x) / (y)) // (int32_t(x) / ::utility::int32_pof2<y>::value)
+#define UINT32_DIV_POF2(x, y) uint32_t(uint32_t(x) / (y)) //(uint32_t(x) / ::utility::uint32_pof2<y>::value)
+
+#define INT32_DIVREM_POF2(x, y) ::utility::divrem<int32_t>{ int32_t(x) / (y), int32_t(x) % (y) } //(int32_t(x) / ::utility::int32_pof2<y>::value), int32_t(x) % (y) }
+#define UINT32_DIVREM_POF2(x, y) ::utility::divrem<uint32_t>{ uint32_t(x) / (y), uint32_t(x) % (y) } //(uint32_t(x) / ::utility::uint32_pof2<y>::value), uint32_t(x) % (y) }
+
+#endif
+
 
 namespace utility
 {
     using namespace tackle;
 
-    size_t get_file_size(FileHandle file_handle);
-    bool is_files_equal(FileHandle left_file_handle, FileHandle right_file_handle);
+    // simple buffer to reallocate memory on demand
+    class Buffer
+    {
+        typedef std::shared_ptr<uint8_t> BufSharedPtr;
+
+    public:
+        FORCE_INLINE Buffer(size_t size = 0)
+        {
+            reset(size);
+        }
+
+        void reset(size_t size)
+        {
+            if (size) {
+                if (m_size < size) {
+                    m_buf_ptr = BufSharedPtr(new uint8_t[size], std::default_delete<uint8_t[]>());
+                    m_size = size;
+                }
+            }
+            else {
+                m_buf_ptr.reset();
+                m_size = 0;
+            }
+        }
+
+        size_t size() const
+        {
+            return m_size;
+        }
+
+        uint8_t * get()
+        {
+            return m_buf_ptr.get();
+        }
+
+        const uint8_t * get() const
+        {
+            return m_buf_ptr.get();
+        }
+
+        uint8_t * realloc_get(size_t size)
+        {
+            reset(size);
+            return m_buf_ptr.get();
+        }
+
+#ifndef WIN64
+        uint8_t * realloc_get(uint64_t size)
+        {
+            if (sizeof(size_t) < sizeof(uint64_t)) {
+                const uint64_t max_value = uint64_t((std::numeric_limits<size_t>::max)());
+                if (size > max_value) {
+                    throw std::runtime_error(
+                        (boost::format(
+                            BOOST_PP_CAT(__FUNCTION__, ": size is out of memory: size=%llu max=%llu")) %
+                                size % max_value).str());
+                }
+            }
+
+            return realloc_get(size_t(size));
+        }
+#endif
+
+    private:
+        size_t          m_size;
+        BufSharedPtr    m_buf_ptr;
+    };
+
+    template<typename T>
+    struct divrem
+    {
+        T quot;
+        T rem;
+    };
+
+    template<int32_t x>
+    struct int32_log2 {
+        static_assert(x && !(x & (x - 1)), "value must be power of 2");
+        static const int value = (1 + int32_log2<x / 2>::value);
+    };
+
+    template<>
+    struct int32_log2<1> {
+        static const int value = 0;
+    };
+
+    template<uint32_t x>
+    struct uint32_log2 {
+        static_assert(x && !(x & (x - 1)), "value must be power of 2");
+        static const uint32_t value = (1 + uint32_log2<x / 2>::value);
+    };
+
+    template<>
+    struct uint32_log2<1> {
+        static const uint32_t value = 0;
+    };
+
+    template<int32_t x>
+    struct int32_pof2
+    {
+        static_assert(x && !(x & (x - 1)), "value must be power of 2");
+        static const int32_t value = x;
+    };
+
+    template<uint32_t x>
+    struct uint32_pof2
+    {
+        static_assert(x && !(x & (x - 1)), "value must be power of 2");
+        static const uint32_t value = x;
+    };
+
+    uint64_t get_file_size(const FileHandle & file_handle);
+    bool is_files_equal(const FileHandle & left_file_handle, const FileHandle & right_file_handle);
     FileHandle recreate_file(const std::string & file_path, const char * mode, int flags, size_t size = 0, uint32_t fill_by = 0);
     FileHandle create_file(const std::string & file_path, const char * mode, int flags, size_t size = 0, uint32_t fill_by = 0);
     FileHandle open_file(const std::string & file_path, const char * mode, int flags, size_t creation_size = 0, size_t resize_if_existed = -1, uint32_t fill_by_on_creation = 0);
 
     template<typename T>
-    std::string int_to_hex(T i, size_t padding = sizeof(T) * 2)
+    FORCE_INLINE std::string int_to_hex(T i, size_t padding = sizeof(T) * 2)
     {
         std::stringstream stream;
         stream << std::setfill('0') << std::setw(padding)
@@ -29,7 +183,7 @@ namespace utility
     }
 
     template<typename T>
-    std::string int_to_dec(T i, size_t padding = sizeof(T) * 2)
+    FORCE_INLINE std::string int_to_dec(T i, size_t padding = sizeof(T) * 2)
     {
         std::stringstream stream;
         stream << std::setfill('0') << std::setw(padding)
@@ -38,7 +192,7 @@ namespace utility
     }
 
     template<typename T>
-    std::string int_to_bin(T i, bool first_bit_is_lowest_bit = false) {
+    FORCE_INLINE std::string int_to_bin(T i, bool first_bit_is_lowest_bit = false) {
         std::bitset<sizeof(T) * CHAR_BIT> bs(i);
         if (!first_bit_is_lowest_bit) {
             return bs.to_string();
@@ -48,67 +202,139 @@ namespace utility
         return std::string(ret.rbegin(), ret.rend());
     }
 
-    inline uint8_t reverse(uint8_t byte) {
+    FORCE_INLINE uint8_t reverse(uint8_t byte) {
         byte = (byte & 0xF0) >> 4 | (byte & 0x0F) << 4;
         byte = (byte & 0xCC) >> 2 | (byte & 0x33) << 2;
         byte = (byte & 0xAA) >> 1 | (byte & 0x55) << 1;
         return byte;
     }
-}
 
-// to suppress compilation warning:
-//  `warning C4146 : unary minus operator applied to unsigned type, result still unsigned`
-inline unsigned int negate(unsigned int i)
-{
-    return unsigned int(-int(i));
-}
+    // to suppress compilation warning:
+    //  `warning C4146 : unary minus operator applied to unsigned type, result still unsigned`
+    FORCE_INLINE unsigned int negate(unsigned int i)
+    {
+        return unsigned int(-int(i));
+    }
 
-inline unsigned long negate(unsigned long i)
-{
-    return unsigned long(-long(i));
-}
+    FORCE_INLINE unsigned long negate(unsigned long i)
+    {
+        return unsigned long(-long(i));
+    }
 
-inline unsigned long long negate(unsigned long long i)
-{
-    return unsigned long long(-long long(i));
-}
+    FORCE_INLINE unsigned long long negate(unsigned long long i)
+    {
+        return unsigned long long(-long long(i));
+    }
 
-template<typename T>
-inline uint32_t rotl(uint32_t n, unsigned int c)
-{
-    static_assert(sizeof(uint32_t) >= sizeof(T), "sizeof(T) must be less or equal to the sizeof(uint32_t)");
-    const uint32_t byte_mask = uint32_t(-1) >> (CHAR_BIT * (sizeof(uint32_t) - sizeof(T)));
-    const uint32_t mask = (CHAR_BIT * sizeof(T) - 1);
-    c &= mask;
-    return byte_mask & ((n << c) | ((byte_mask & n) >> (mask & negate(c))));
-}
+    template<typename T>
+    FORCE_INLINE uint32_t t_rotl32(uint32_t n, unsigned int c)
+    {
+        static_assert(sizeof(uint32_t) >= sizeof(T), "sizeof(T) must be less or equal to the sizeof(uint32_t)");
+        const uint32_t byte_mask = uint32_t(-1) >> (CHAR_BIT * (sizeof(uint32_t) - sizeof(T)));
+        const uint32_t mask = (CHAR_BIT * sizeof(T) - 1);
+        c &= mask;
+        return byte_mask & ((n << c) | ((byte_mask & n) >> (mask & negate(c))));
+    }
 
-template<typename T>
-inline uint32_t rotr(uint32_t n, unsigned int c)
-{
-    static_assert(sizeof(uint32_t) >= sizeof(T), "sizeof(T) must be less or equal to the sizeof(uint32_t)");
-    const uint32_t byte_mask = uint32_t(-1) >> (CHAR_BIT * (sizeof(uint32_t) - sizeof(T)));
-    const uint32_t mask = (CHAR_BIT * sizeof(T) - 1);
-    c &= mask;
-    return byte_mask & (((byte_mask & n) >> c) | (n << (mask & negate(c))));
-}
+    template<typename T>
+    FORCE_INLINE uint32_t t_rotr32(uint32_t n, unsigned int c)
+    {
+        static_assert(sizeof(uint32_t) >= sizeof(T), "sizeof(T) must be less or equal to the sizeof(uint32_t)");
+        const uint32_t byte_mask = uint32_t(-1) >> (CHAR_BIT * (sizeof(uint32_t) - sizeof(T)));
+        const uint32_t mask = (CHAR_BIT * sizeof(T) - 1);
+        c &= mask;
+        return byte_mask & (((byte_mask & n) >> c) | (n << (mask & negate(c))));
+    }
 
-inline uint32_t rotl8(uint32_t n, unsigned int c)
-{
-    return rotl<uint8_t>(n, c);
-}
+    template<typename T>
+    FORCE_INLINE uint64_t t_rotl64(uint64_t n, unsigned int c)
+    {
+        static_assert(sizeof(uint64_t) >= sizeof(T), "sizeof(T) must be less or equal to the sizeof(uint64_t)");
+        const uint64_t byte_mask = uint64_t(-1) >> (CHAR_BIT * (sizeof(uint64_t) - sizeof(T)));
+        const uint64_t mask = (CHAR_BIT * sizeof(T) - 1);
+        c &= mask;
+        return byte_mask & ((n << c) | ((byte_mask & n) >> (mask & negate(c))));
+    }
 
-inline uint32_t rotr8(uint32_t n, unsigned int c)
-{
-    return rotr<uint8_t>(n, c);
-}
+    template<typename T>
+    FORCE_INLINE uint64_t t_rotr64(uint64_t n, unsigned int c)
+    {
+        static_assert(sizeof(uint64_t) >= sizeof(T), "sizeof(T) must be less or equal to the sizeof(uint64_t)");
+        const uint64_t byte_mask = uint64_t(-1) >> (CHAR_BIT * (sizeof(uint64_t) - sizeof(T)));
+        const uint64_t mask = (CHAR_BIT * sizeof(T) - 1);
+        c &= mask;
+        return byte_mask & (((byte_mask & n) >> c) | (n << (mask & negate(c))));
+    }
 
-inline uint32_t rotl16(uint32_t n, unsigned int c)
-{
-    return rotl<uint16_t>(n, c);
-}
+    FORCE_INLINE uint32_t rotl8(uint32_t n, unsigned int c)
+    {
+#if defined(UTILITY_COMPILER_CXX_MSC) && defined(ENABLE_INTRINSIC)
+        return _rotl8(unsigned char(n), unsigned char(c));
+#else
+        return t_rotl32<uint8_t>(n, c);
+#endif
+    }
 
-inline uint32_t rotr16(uint32_t n, unsigned int c)
-{
-    return rotr<uint16_t>(n, c);
+    FORCE_INLINE uint32_t rotr8(uint32_t n, unsigned int c)
+    {
+#if defined(UTILITY_COMPILER_CXX_MSC) && defined(ENABLE_INTRINSIC)
+        return _rotr8(unsigned char(n), unsigned char(c));
+#else
+        return t_rotr32<uint8_t>(n, c);
+#endif
+    }
+
+    FORCE_INLINE uint32_t rotl16(uint32_t n, unsigned int c)
+    {
+#if defined(UTILITY_COMPILER_CXX_MSC) && defined(ENABLE_INTRINSIC)
+        return _rotl16(unsigned short(n), unsigned char(c));
+#else
+        return t_rotl32<uint16_t>(n, c);
+#endif
+    }
+
+    FORCE_INLINE uint32_t rotr16(uint32_t n, unsigned int c)
+    {
+#if defined(UTILITY_COMPILER_CXX_MSC) && defined(ENABLE_INTRINSIC)
+        return _rotr16(unsigned short(n), unsigned char(c));
+#else
+        return t_rotr32<uint16_t>(n, c);
+#endif
+    }
+
+    FORCE_INLINE uint32_t rotl32(uint32_t n, unsigned int c)
+    {
+#if defined(UTILITY_COMPILER_CXX_MSC) && defined(ENABLE_INTRINSIC)
+        return _rotl(unsigned int(n), int(c));
+#else
+        return t_rotl32<uint32_t>(n, c);
+#endif
+    }
+
+    FORCE_INLINE uint32_t rotr32(uint32_t n, unsigned int c)
+    {
+#if defined(UTILITY_COMPILER_CXX_MSC) && defined(ENABLE_INTRINSIC)
+        return _rotr(unsigned int(n), int(c));
+#else
+        return t_rotr32<uint32_t>(n, c);
+#endif
+    }
+
+    FORCE_INLINE uint64_t rotl64(uint64_t n, unsigned int c)
+    {
+#if defined(UTILITY_COMPILER_CXX_MSC) && defined(ENABLE_INTRINSIC)
+        return _rotl64(unsigned long long(n), int(c));
+#else
+        return t_rotl64<uint64_t>(n, c);
+#endif
+    }
+
+    FORCE_INLINE uint64_t rotr64(uint64_t n, unsigned int c)
+    {
+#if defined(UTILITY_COMPILER_CXX_MSC) && defined(ENABLE_INTRINSIC)
+        return _rotr64(unsigned long long(n), int(c));
+#else
+        return t_rotr64<uint64_t>(n, c);
+#endif
+    }
 }

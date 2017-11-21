@@ -15,6 +15,8 @@ set "CMAKE_CPACK_ROOT=%CMAKE_OUTPUT_ROOT%/pack"
 
 set "CMAKE_GENERATOR_TOOLSET=Visual Studio 14 2015"
 
+set "NSIS_INSTALL_ROOT=c:\nsis\3.x"
+
 if not defined NEST_LVL set NEST_LVL=0
 
 if not exist "%CMAKE_BUILD_ROOT%\" call :CMD mkdir "%%CMAKE_BUILD_ROOT%%"

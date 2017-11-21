@@ -13,7 +13,7 @@ namespace boost
 
 namespace utility
 {
-    size_t get_file_size(FileHandle file_handle)
+    uint64_t get_file_size(const FileHandle & file_handle)
     {
         ASSERT_TRUE(file_handle.get());
 
@@ -21,16 +21,16 @@ namespace utility
         if (fgetpos(file_handle.get(), &last_pos)) return 0;
         if (fseek(file_handle.get(), 0, SEEK_END)) return 0;
 
-        const size_t size = ftell(file_handle.get());
+        const uint64_t size = _ftelli64(file_handle.get());
         fsetpos(file_handle.get(), &last_pos);
 
         return size;
     }
 
-    bool is_files_equal(FileHandle left_file_handle, FileHandle right_file_handle)
+    bool is_files_equal(const FileHandle & left_file_handle, const FileHandle & right_file_handle)
     {
-        const size_t left_file_size = get_file_size(left_file_handle);
-        const size_t right_file_size = get_file_size(right_file_handle);
+        const uint64_t left_file_size = get_file_size(left_file_handle);
+        const uint64_t right_file_size = get_file_size(right_file_handle);
         if (left_file_size != right_file_size)
             return false;
 
@@ -59,7 +59,7 @@ namespace utility
         FILE * file_ptr = _fsopen(file_path.c_str(), mode, flags);
         FileHandle file_handle_ptr = FileHandle(file_ptr, file_path);
         if (!file_ptr) {
-            __asm int 3;
+            utility::debug_break();
             throw std::system_error{ errno, std::system_category(), file_path };
         }
 
@@ -72,7 +72,7 @@ namespace utility
                 const size_t write_size = fwrite(&chunk[0], 1, chunk.size(), file_ptr);
                 const int file_err = ferror(file_ptr);
                 if (write_size < chunk.size()) {
-                    __asm int 3;
+                    utility::debug_break();
                     throw std::system_error{ file_err, std::system_category(), file_path };
                 }
             }
@@ -81,7 +81,7 @@ namespace utility
             const size_t write_size = fwrite(&chunk[0], 1, chunk_reminder, file_ptr);
             const int file_err = ferror(file_ptr);
             if (write_size < chunk_reminder) {
-                __asm int 3;
+                utility::debug_break();
                 throw std::system_error{ file_err, std::system_category(), file_path };
             }
         }
@@ -94,7 +94,7 @@ namespace utility
         const bool file_existed = boost::fs::exists(file_path);
         if (file_existed) {
             const int errno_ = 3; // file already exist
-            __asm int 3;
+            utility::debug_break();
             throw std::system_error{ errno_, std::system_category(), file_path };
         }
 
@@ -111,7 +111,7 @@ namespace utility
         FILE * file_ptr = _fsopen(file_path.c_str(), mode, flags);
         FileHandle file_handle_ptr = FileHandle(file_ptr, file_path);
         if (!file_ptr) {
-            __asm int 3;
+            utility::debug_break();
             throw std::system_error{ errno, std::system_category(), file_path };
         }
 
@@ -122,7 +122,7 @@ namespace utility
             // reopen handle
             file_handle_ptr = FileHandle(file_ptr = _fsopen(file_path.c_str(), mode, flags), file_path);
             if (!file_ptr) {
-                __asm int 3;
+                utility::debug_break();
                 throw std::system_error{ errno, std::system_category(), file_path };
             }
         }

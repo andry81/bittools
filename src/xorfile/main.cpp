@@ -1,7 +1,9 @@
-#include "main.h"
+#include "main.hpp"
 
 #include "utility/utility.hpp"
 #include "utility/assert.hpp"
+
+#include "tackle/file_reader.hpp"
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
@@ -22,6 +24,12 @@ namespace boost {
 
 namespace
 {
+    struct UserData
+    {
+        std::vector<uint8_t> xor_value;
+        FileHandle file_out_handle;
+    };
+
     void xor_buffer(uint8_t * buf, uint32_t size, const std::vector<uint8_t> & xor_value = { 0xff, 0xff, 0xff, 0xff })
     {
         ASSERT_TRUE(buf && size);
@@ -50,6 +58,32 @@ namespace
             for (size_t i = 0; i < reminder; i++) {
                 (buf + buf_offset)[i] ^= xor_value[i];
             }
+        }
+    }
+
+    void _read_file_chunk(uint8_t * buf, uint64_t size, void * user_data)
+    {
+        if (sizeof(size_t) < sizeof(uint64_t)) {
+            const uint64_t max_value = uint64_t((std::numeric_limits<size_t>::max)());
+            if (size > max_value) {
+                throw std::runtime_error(
+                    (boost::format(
+                        BOOST_PP_CAT(__FUNCTION__, ": size is out of buffer: size=%llu")) %
+                        size).str());
+            }
+        }
+
+        const UserData & data = *static_cast<UserData *>(user_data);
+
+        const size_t read_size = uint32_t(size);
+
+        xor_buffer(buf, read_size, data.xor_value);
+
+        const size_t write_size = fwrite(buf, 1, read_size, data.file_out_handle.get());
+        const int file_write_err = ferror(data.file_out_handle.get());
+        if (write_size < read_size) {
+            utility::debug_break();
+            throw std::system_error{ file_write_err, std::system_category(), data.file_out_handle.path() };
         }
     }
 }
@@ -117,10 +151,6 @@ int main(int argc, char* argv[])
             bit_size = 1024 * 1024 * CHAR_BIT;
         }
 
-        const uint32_t buf_size = 4 * 1024 * 1024;
-        ASSERT_GE(buf_size, bit_size * CHAR_BIT);
-
-        uint8_t next_read_offset = 0;
         uint32_t next_read_size = (bit_size + CHAR_BIT - 1) / CHAR_BIT;
         size_t read_size = 0;
         size_t write_size = 0;
@@ -130,40 +160,21 @@ int main(int argc, char* argv[])
         read_size = fread(&xor_value[0], 1, next_read_size, file_in_handle.get());
         const int file_read_err = ferror(file_in_handle.get());
         if (read_size < next_read_size) {
-            __asm int 3
+            utility::debug_break();
             throw std::system_error{ file_read_err, std::system_category(), file_in_handle.path() };
         }
 
         write_size = fwrite(&xor_value[0], 1, read_size, file_out_handle.get());
         const int file_write_err = ferror(file_out_handle.get());
         if (write_size < read_size) {
-            __asm int 3
+            utility::debug_break();
             throw std::system_error{ file_write_err, std::system_category(), file_out_handle.path() };
         }
 
-        ReadBufSharedPtr read_buf_ptr = ReadBufSharedPtr(new uint8_t[next_read_size], std::default_delete<uint8_t[]>());
-
-        int is_eof = feof(file_in_handle.get());
-        while (!is_eof) {
-            read_size = fread(read_buf_ptr.get(), 1, next_read_size, file_in_handle.get());
-            const int file_read_err = ferror(file_in_handle.get());
-            is_eof = feof(file_in_handle.get());
-            if (file_read_err || read_size != next_read_size && !is_eof) {
-                __asm int 3
-                throw std::system_error{ file_read_err, std::system_category(), file_in_handle.path() };
-            }
-
-            if (read_size) {
-                xor_buffer(read_buf_ptr.get(), read_size, xor_value);
-
-                write_size = fwrite(read_buf_ptr.get(), 1, read_size, file_out_handle.get());
-                const int file_write_err = ferror(file_out_handle.get());
-                if (write_size < read_size) {
-                    __asm int 3
-                    throw std::system_error{ file_write_err, std::system_category(), file_out_handle.path() };
-                }
-            }
-        }
+        UserData user_data;
+        user_data.xor_value = xor_value;
+        user_data.file_out_handle = file_out_handle;
+        tackle::FileReader(file_in_handle, _read_file_chunk).do_read(&user_data, {}, next_read_size);
     }
     catch (std::exception & e) {
         std::cerr << e.what() << "\n";
