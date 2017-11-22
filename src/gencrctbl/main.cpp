@@ -63,6 +63,9 @@ namespace
         case 2:
             crc_max_value = uint16_t(~0U);
             break;
+        case 3:
+            crc_max_value = uint32_t(~0U) & 0xFFFFFFU;
+            break;
         case 4:
             crc_max_value = uint32_t(~0U);
             break;
@@ -85,6 +88,11 @@ namespace
             case 2:
             {
                 reflected_crc_polynomial = _reflect_value(crc_polynomial, uint16_t());
+            } break;
+
+            case 3:
+            {
+                reflected_crc_polynomial = (_reflect_value(crc_polynomial, uint32_t()) >> CHAR_BIT);
             } break;
 
             case 4:
@@ -129,6 +137,7 @@ namespace
                 table_byte_var = uint16_t();
             } break;
 
+            case 3:
             case 4:
             {
                 table_byte_var = uint32_t();
@@ -173,6 +182,7 @@ namespace
                     s_calc_func(divident, uint16_t());
                 } break;
 
+                case 3:
                 case 4:
                 {
                     s_calc_func(divident, uint32_t());
@@ -204,7 +214,7 @@ int main(int argc, char **argv)
             ("help,h", "print usage message")
 
             ("width,w",
-                po::value(&crc_width)->required(),      "crc width (ex: 8, 16, 32)")
+                po::value(&crc_width)->required(),      "crc width (ex: 8, 16, 24, 32)")
             ("polynomial,p",
                 po::value(&crc_polynomial_str)->required(), "crc from LSB to MSB polynomial")
             ("columns,c",
@@ -259,6 +269,9 @@ int main(int argc, char **argv)
     case 2:
         table_columns = 8;
         break;
+    case 3:
+        table_columns = 6;
+        break;
     case 4:
         table_columns = 4;
         break;
@@ -266,7 +279,7 @@ int main(int argc, char **argv)
     default:
         fprintf(stderr, "%s\n",
             (boost::format(
-                BOOST_PP_CAT("error: " __FUNCTION__, ": invalid crc width: width=%u supported=[1,2,4]")) %
+                BOOST_PP_CAT("error: " __FUNCTION__, ": invalid crc width: width=%u supported=[8,16,24,32]")) %
                     crc_width).str().c_str());
         return 2;
     }
