@@ -209,6 +209,17 @@ namespace utility
         return byte;
     }
 
+    template <typename T>
+    FORCE_INLINE T reverse(T value) {
+        T res = 0;
+        for (size_t i = 0; i < sizeof(value) * CHAR_BIT; i++) {
+            if (value & (0x01U << i)) {
+                res |= (0x01U << (sizeof(value) * CHAR_BIT - i - 1));
+            }
+        }
+        return res;
+    }
+
     // to suppress compilation warning:
     //  `warning C4146 : unary minus operator applied to unsigned type, result still unsigned`
     FORCE_INLINE unsigned int negate(unsigned int i)
