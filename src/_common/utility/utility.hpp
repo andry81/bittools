@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utility/platform.hpp"
+#include "utility/math.hpp"
 #include "tackle/file_handle.hpp"
 
 #ifdef UTILITY_COMPILER_CXX_MSC
@@ -24,36 +25,10 @@
 
 #define SCOPED_TYPEDEF(type_, typedef_) typedef struct { typedef type_ type; } typedef_
 
-#define INT32_LOG2(x) ::utility::int32_log2<x>::value
-#define UINT32_LOG2(x) ::utility::uint32_log2<x>::value
-
-#if defined(ENABLE_POF2_DEFINITIONS) && !defined(DISABLE_POF2_DEFINITIONS)
-
-#define INT32_MULT_POF2(x, y) int32_t(int32_t(x) << INT32_LOG2(y))
-#define UINT32_MULT_POF2(x, y) uint32_t(uint32_t(x) << UINT32_LOG2(y))
-
-#define INT32_DIV_POF2(x, y) int32_t(int32_t(x) >> INT32_LOG2(y))
-#define UINT32_DIV_POF2(x, y) uint32_t(uint32_t(x) >> UINT32_LOG2(y))
-
-#define INT32_DIVREM_POF2(x, y) ::utility::divrem<int32_t>{ int32_t(x) >> INT32_LOG2(y), int32_t(x) & ((y) - 1) }
-#define UINT32_DIVREM_POF2(x, y) ::utility::divrem<uint32_t>{ uint32_t(x) >> UINT32_LOG2(y), uint32_t(x) & ((y) - 1) }
-
-#else
-
-#define INT32_MULT_POF2(x, y) int32_t(int32_t(x) * (y)) //(int32_t(x) * ::utility::int32_pof2<y>::value)
-#define UINT32_MULT_POF2(x, y) uint32_t(uint32_t(x) * (y)) //(uint32_t(x) * ::utility::uint32_pof2<y>::value)
-
-#define INT32_DIV_POF2(x, y) int32_t(int32_t(x) / (y)) // (int32_t(x) / ::utility::int32_pof2<y>::value)
-#define UINT32_DIV_POF2(x, y) uint32_t(uint32_t(x) / (y)) //(uint32_t(x) / ::utility::uint32_pof2<y>::value)
-
-#define INT32_DIVREM_POF2(x, y) ::utility::divrem<int32_t>{ int32_t(x) / (y), int32_t(x) % (y) } //(int32_t(x) / ::utility::int32_pof2<y>::value), int32_t(x) % (y) }
-#define UINT32_DIVREM_POF2(x, y) ::utility::divrem<uint32_t>{ uint32_t(x) / (y), uint32_t(x) % (y) } //(uint32_t(x) / ::utility::uint32_pof2<y>::value), uint32_t(x) % (y) }
-
-#endif
-
 
 namespace utility
 {
+    using namespace math;
     using namespace tackle;
 
     // simple buffer to reallocate memory on demand
@@ -122,49 +97,6 @@ namespace utility
     private:
         size_t          m_size;
         BufSharedPtr    m_buf_ptr;
-    };
-
-    template<typename T>
-    struct divrem
-    {
-        T quot;
-        T rem;
-    };
-
-    template<int32_t x>
-    struct int32_log2 {
-        static_assert(x && !(x & (x - 1)), "value must be power of 2");
-        static const int value = (1 + int32_log2<x / 2>::value);
-    };
-
-    template<>
-    struct int32_log2<1> {
-        static const int value = 0;
-    };
-
-    template<uint32_t x>
-    struct uint32_log2 {
-        static_assert(x && !(x & (x - 1)), "value must be power of 2");
-        static const uint32_t value = (1 + uint32_log2<x / 2>::value);
-    };
-
-    template<>
-    struct uint32_log2<1> {
-        static const uint32_t value = 0;
-    };
-
-    template<int32_t x>
-    struct int32_pof2
-    {
-        static_assert(x && !(x & (x - 1)), "value must be power of 2");
-        static const int32_t value = x;
-    };
-
-    template<uint32_t x>
-    struct uint32_pof2
-    {
-        static_assert(x && !(x & (x - 1)), "value must be power of 2");
-        static const uint32_t value = x;
     };
 
     uint64_t get_file_size(const FileHandle & file_handle);

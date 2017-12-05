@@ -23,6 +23,7 @@ src/_common/utility/crc_tables.hpp -text
 src/_common/utility/debug.cpp -text
 src/_common/utility/debug.hpp -text
 src/_common/utility/hash.hpp -text
+src/_common/utility/math.hpp -text
 src/_common/utility/platform.hpp -text
 src/_common/utility/preprocessor.hpp -text
 src/_common/utility/utility.cpp -text
