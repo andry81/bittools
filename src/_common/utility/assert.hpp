@@ -40,6 +40,7 @@
 //    (bug in the `Visual Studio 2015 Update 3` with rarely uninitialized lambda captured variable, mostly because of lambda assign to an auto variable).
 //  * all unnecessary lambdas replaced by explicit structure with parentheses operator with void return to avoid slow down around excessive lambdas usage in the debug.
 //  * if debugger is attached but `::testing::GTEST_FLAG(break_on_failure)` has not been setted, then an assertion does a post break.
+//  * The `auto` has used instead of `decltype()` to avoid MSVC 2015 error: `error C2352: '...': illegal call of non-static member function`
 
 #ifdef USE_ASSERT_WITH_INPLACE_STRUCT_OPERATOR_INSTEAD_LAMBDAS
 
