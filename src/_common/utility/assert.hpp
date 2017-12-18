@@ -21,7 +21,7 @@
 
 
 #define ASSERT_FAIL_BREAK_ON_ATTACHED_DEBUGGER(exp, precondition) \
-    if (!(precondition)); else if(bool(exp)); else DEBUG_BREAK(true)
+    if (!(precondition)); else if(!!(exp)); else DEBUG_BREAK(true)
 
 #ifdef GTEST_FAIL
 
@@ -156,7 +156,7 @@
 
 #define VERIFY_TRUE_IMPL(exp) (BREAK_POINT_PLACEHOLDER(), [](const decltype(exp) & exp_var, const char * exp_str) -> const decltype(exp) & { \
         static const auto & fail_break = [](const decltype(exp) & exp_var, const char * exp_str) -> void { \
-            const bool is_success = ::utility::is_true(exp_var); \
+            const bool is_success = !!(exp_var); \
             const bool break_on_failure = ::testing::GTEST_FLAG(break_on_failure); \
             if (break_on_failure) { \
                 GTEST_TEST_BOOLEAN_(is_success, exp_str, false, true, GTEST_FATAL_FAILURE_); \
@@ -177,7 +177,7 @@
 
 #define VERIFY_FALSE_IMPL(exp) (BREAK_POINT_PLACEHOLDER(), [](const decltype(exp) & exp_var, const char * exp_str) -> const decltype(exp) & { \
         static const auto & fail_break = [](const decltype(exp) & exp_var, const char * exp_str) -> void { \
-            const bool is_success = ::utility::is_false(exp_var); \
+            const bool is_success = !(exp_var); \
             const bool break_on_failure = ::testing::GTEST_FLAG(break_on_failure); \
             if (break_on_failure) { \
                 GTEST_TEST_BOOLEAN_(is_success, exp_str, true, false, GTEST_FATAL_FAILURE_); \
@@ -353,7 +353,7 @@
 
 #ifndef VERIFY_IMPL
 #define VERIFY_IMPL(exp) [](const decltype(exp) & exp_) -> const decltype(exp) & { \
-        if (!::utility::is_true(exp_)) { \
+        if (!(exp_)) { \
             _wassert(_CRT_WIDE(#exp), _CRT_WIDE(UTILITY_PP_FILE), (unsigned)(UTILITY_PP_LINE)); \
         } \
         return exp_; \
@@ -389,15 +389,15 @@
 
 #else
 
-#define VERIFY_TRUE(exp) ::utility::is_true(exp)
-#define VERIFY_FALSE(exp) ::utility::is_false(exp)
+#define VERIFY_TRUE(exp) ::utility::verify_true(exp)
+#define VERIFY_FALSE(exp) ::utility::verify_false(exp)
 
-#define VERIFY_EQ(v1, v2) ::utility::is_equal(v1, v2)
-#define VERIFY_NE(v1, v2) ::utility::is_not_equal(v1, v2)
-#define VERIFY_LE(v1, v2) ::utility::is_less_or_equal(v1, v2)
-#define VERIFY_LT(v1, v2) ::utility::is_less(v1, v2)
-#define VERIFY_GE(v1, v2) ::utility::is_greater_or_equal(v1, v2)
-#define VERIFY_GT(v1, v2) ::utility::is_greater(v1, v2)
+#define VERIFY_EQ(v1, v2) ::utility::verify_equal(v1, v2)
+#define VERIFY_NE(v1, v2) ::utility::verify_not_equal(v1, v2)
+#define VERIFY_LE(v1, v2) ::utility::verify_less_or_equal(v1, v2)
+#define VERIFY_LT(v1, v2) ::utility::verify_less(v1, v2)
+#define VERIFY_GE(v1, v2) ::utility::verify_greater_or_equal(v1, v2)
+#define VERIFY_GT(v1, v2) ::utility::verify_greater(v1, v2)
 
 #define ASSERT_TRUE(exp) (void)0; { UTILITY_UNUSED(exp); } (void)0
 #define ASSERT_FALSE(exp) (void)0; { UTILITY_UNUSED(exp); } (void)0
@@ -409,7 +409,7 @@
 #define ASSERT_GE(v1, v2) (void)0; { UTILITY_UNUSED2(v1, v2); } (void)0
 #define ASSERT_GT(v1, v2) (void)0; { UTILITY_UNUSED2(v1, v2); } (void)0
 
-#define VERIFY(exp) ::utility::is_true(exp)
+#define VERIFY(exp) ::utility::verify_true(exp)
 #define ASSERT(exp) (void)0; { UTILITY_UNUSED(exp); } (void)0
 
 #define ASSERT_VERIFY_DISABLED 1
@@ -433,57 +433,57 @@ namespace utility
     // * to capture parameters by reference in macro definitions for single evaluation
     // * to suppress `unused variable` warnings like: `warning C4101: '...': unreferenced local variable`
     template<typename T>
-    FORCE_INLINE bool is_true(const T & v)
+    FORCE_INLINE const T & verify_true(const T & v)
     {
-        return !!v; // to avoid warnings of truncation to bool
+        return !!v ? v : v; // to avoid warnings of truncation to bool
     }
 
     template<typename T>
-    FORCE_INLINE bool is_false(const T & v)
+    FORCE_INLINE const T & verify_false(const T & v)
     {
-        return !v; // to avoid warnings of truncation to bool
+        return !v ? v1 : v1; // to avoid warnings of truncation to bool
     }
 
     template<typename T1, typename T2>
-    FORCE_INLINE bool is_equal(const T1 & v1, const T2 & v2)
+    FORCE_INLINE const T1 & verify_equal(const T1 & v1, const T2 & v2)
     {
-        return v1 == v2;
+        return v1 == v2 ? v1 : v1;
     }
 
     template<typename T1, typename T2>
-    FORCE_INLINE bool is_not_equal(const T1 & v1, const T2 & v2)
+    FORCE_INLINE const T1 & verify_not_equal(const T1 & v1, const T2 & v2)
     {
-        return v1 != v2;
+        return v1 != v2 ? v1 : v1;
     }
 
     template<typename T1, typename T2>
-    FORCE_INLINE bool is_less_or_equal(const T1 & v1, const T2 & v2)
+    FORCE_INLINE const T1 & verify_less_or_equal(const T1 & v1, const T2 & v2)
     {
-        return v1 <= v2;
+        return v1 <= v2 ? v1 : v1;
     }
 
     template<typename T1, typename T2>
-    FORCE_INLINE bool is_less(const T1 & v1, const T2 & v2)
+    FORCE_INLINE const T1 & verify_less(const T1 & v1, const T2 & v2)
     {
-        return v1 < v2;
+        return v1 < v2 ? v1 : v1;
     }
 
     template<typename T1, typename T2>
-    FORCE_INLINE bool is_greater_or_equal(const T1 & v1, const T2 & v2)
+    FORCE_INLINE const T1 & verify_greater_or_equal(const T1 & v1, const T2 & v2)
     {
-        return v1 >= v2;
+        return v1 >= v2 ? v1 : v1;
     }
 
     template<typename T1, typename T2>
-    FORCE_INLINE bool is_greater(const T1 & v1, const T2 & v2)
+    FORCE_INLINE const T1 & verify_greater(const T1 & v1, const T2 & v2)
     {
-        return v1 > v2;
+        return v1 > v2 ? v1 : v1;
     }
 
     struct AssertTrue {
         template <typename T>
         FORCE_INLINE void operator()(const T & exp_var, const char * exp_str) const {
-            const bool is_success = ::utility::is_true(exp_var);
+            const bool is_success = !!(exp_var);
             const bool break_on_failure = ::testing::GTEST_FLAG(break_on_failure);
             if (break_on_failure) {
                 GTEST_TEST_BOOLEAN_(is_success, exp_str, false, true, GTEST_FATAL_FAILURE_);
@@ -497,7 +497,7 @@ namespace utility
     struct AssertFalse {
         template <typename T>
         FORCE_INLINE void operator()(const T & exp_var, const char * exp_str) const {
-            const bool is_success = ::utility::is_false(exp_var);
+            const bool is_success = !(exp_var);
             const bool break_on_failure = ::testing::GTEST_FLAG(break_on_failure);
             if (break_on_failure) {
                 GTEST_TEST_BOOLEAN_(is_success, exp_str, false, true, GTEST_FATAL_FAILURE_);
