@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utility/platform.hpp"
+#include "utility/utility.hpp"
 
 #include <cstdint>
 
@@ -80,6 +81,23 @@ namespace math
         static const uint32_t value = x;
     };
 
+    // to suppress compilation warning:
+    //  `warning C4146 : unary minus operator applied to unsigned type, result still unsigned`
+    FORCE_INLINE unsigned int negate(unsigned int i)
+    {
+        return unsigned int(-int(i));
+    }
+
+    FORCE_INLINE unsigned long negate(unsigned long i)
+    {
+        return unsigned long(-long(i));
+    }
+
+    FORCE_INLINE unsigned long long negate(unsigned long long i)
+    {
+        return unsigned long long(-long long(i));
+    }
+
     template<typename R, typename T0, typename T1>
     FORCE_INLINE R t_add_no_overflow(T0 a, T1 b)
     {
@@ -114,5 +132,35 @@ namespace math
     FORCE_INLINE uint64_t uint64_sub_no_overflow(uint64_t a, uint64_t b)
     {
         return t_sub_no_overflow<uint64_t>(a, b);
+    }
+
+    template <typename T>
+    FORCE_INLINE T t_sum_naturals(T v)
+    {
+        if (v >= 0)
+        {
+            if (v % 2) {
+                return T(((v + 1) >> 1) * v);
+            }
+
+            return T((v >> 1) * (v + 1));
+        }
+
+        const T n = negate(v);
+        if (n % 2) {
+            return T(1) - T(((n + 1) >> 1) * n);
+        }
+
+        return T(1) - T((n >> 1) * (n + 1));
+    }
+
+    FORCE_INLINE uint64_t sum_naturals(uint64_t from, uint64_t to)
+    {
+        if (!from)
+        {
+            return t_sum_naturals(to);
+        }
+
+        return t_sum_naturals(to) - t_sum_naturals(from - 1);
     }
 }

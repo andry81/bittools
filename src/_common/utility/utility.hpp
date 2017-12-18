@@ -152,23 +152,6 @@ namespace utility
         return res;
     }
 
-    // to suppress compilation warning:
-    //  `warning C4146 : unary minus operator applied to unsigned type, result still unsigned`
-    FORCE_INLINE unsigned int negate(unsigned int i)
-    {
-        return unsigned int(-int(i));
-    }
-
-    FORCE_INLINE unsigned long negate(unsigned long i)
-    {
-        return unsigned long(-long(i));
-    }
-
-    FORCE_INLINE unsigned long long negate(unsigned long long i)
-    {
-        return unsigned long long(-long long(i));
-    }
-
     template<typename T>
     FORCE_INLINE uint32_t t_rotl32(uint32_t n, unsigned int c)
     {

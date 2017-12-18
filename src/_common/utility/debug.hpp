@@ -25,6 +25,9 @@
 //#define UTILITY_UNUSED2(e0, e1) (void)(false ? (void)(UTILITY_UNUSED(e0), UTILITY_UNUSED(e1)) : (void)0)
 #endif
 
+// break point placeholder, useful inside macroses like ASSERT*
+#define BREAK_POINT_PLACEHOLDER() ::utility::unused() // `__asm nop` - can't be placed inside expressions, only statements
+
 #ifdef _DEBUG
 #define IF_DEBUG(x) x
 #else
@@ -48,6 +51,11 @@
 
 namespace utility
 {
+    // empty instruction for breakpoint placeholder
+    FORCE_INLINE void unused()
+    {
+    }
+
     // better parameter suppression in release than (void)
     template<typename T>
     FORCE_INLINE void unused(T &&)

@@ -6,7 +6,7 @@ namespace tackle
 {
     typedef void ReleaseDeleterFunc(void *);
 
-    // * not thread safe deleter deleter with release support
+    // * not thread safe deleter with release support
     // * the deleter by user type together with the deleter by user value, deleter by user value has priority
     template <typename T, typename R = bool, typename Base = typename std::default_delete<T> >
     class ReleaseDeleter : private Base {
