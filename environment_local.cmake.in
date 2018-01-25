@@ -1,0 +1,7 @@
+set(ENV{_3DPARTY_ROOT} "")
+set(ENV{ENV_ROOT} "D:/3dparty/vc14_x86")
+set(ENV{CMAKE_RUNTIME_OUTPUT_DIRECTORY} "W:/Work/MyProjects/_contools/sf~contools--bittools/_out/bin")
+set(ENV{CMAKE_LIBRARY_OUTPUT_DIRECTORY} "W:/Work/MyProjects/_contools/sf~contools--bittools/_out/lib")
+set(ENV{CMAKE_INSTALL_PREFIX} "W:/Work/MyProjects/_contools/sf~contools--bittools/_out/install")
+set(ENV{CPACK_OUTPUT_FILE_PREFIX} "W:/Work/MyProjects/_contools/sf~contools--bittools/_out/pack")
+set(ENV{NSIS_INSTALL_ROOT} "")

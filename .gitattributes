@@ -1,16 +1,19 @@
 * text=auto !eol
 /CMakeLists.txt -text
-/CPackMakeConfig.cmake -text
 /README_EN.txt -text
 _scripts/__init__.bat -text
 _scripts/build_x86.bat -text
-_scripts/configure.bat -text
+_scripts/configure_gen.bat -text
+_scripts/configure_nogen.bat -text
 _scripts/install_debug_x86.bat -text
 _scripts/install_release_x86.bat -text
 _scripts/pack_debug_x86.bat -text
 _scripts/pack_release_x86.bat -text
+cmake/CPackMakeConfig.cmake -text
 cmake/Common.cmake -text
-cmake/UseEnvironment.cmake -text
+cmake/ConfigureFile.cmake -text
+cmake/FindEnvironment.cmake -text
+/environment_local.cmake.in -text
 src/_common/tackle/file_handle.cpp -text
 src/_common/tackle/file_handle.hpp -text
 src/_common/tackle/file_reader.cpp -text
@@ -26,6 +29,7 @@ src/_common/utility/hash.hpp -text
 src/_common/utility/math.hpp -text
 src/_common/utility/platform.hpp -text
 src/_common/utility/preprocessor.hpp -text
+src/_common/utility/type_traits.hpp -text
 src/_common/utility/utility.cpp -text
 src/_common/utility/utility.hpp -text
 src/gencrctbl/main.cpp -text

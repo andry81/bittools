@@ -12,6 +12,37 @@ macro(discover_variable var desc)
   endif()
 endmacro()
 
+function(configure_file_and_include_impl tmpl_file_path out_file_path is_required)
+  if(NOT EXISTS ${tmpl_file_path})
+    message(FATAL_ERROR "template input file does not exist: \"${tmpl_file_path}\"")
+  endif()
+
+  get_filename_component(out_file_dir ${out_file_path} DIRECTORY)
+  if(NOT EXISTS ${out_file_dir})
+    message(FATAL_ERROR "output file directory does not exist: \"${out_file_dir}\"")
+  endif()
+
+  # override current environment variables by locally stored
+  if(is_required OR NOT EXISTS "${out_file_path}")
+    set(CONFIGURE_IN_FILE "${tmpl_file_path}")
+    set(CONFIGURE_OUT_FILE "${out_file_path}")
+    include(ConfigureFile)
+  endif()
+
+  if(EXISTS "${out_file_path}")
+    include("${out_file_path}")
+    message(STATUS "(*) Configurated files: \"${tmpl_file_path}\" -> \"${out_file_path}\"")
+  endif()
+endfunction()
+
+function(configure_file_and_include_optional tmpl_file_path out_file_path)
+  configure_file_and_include_impl(${tmpl_file_path} ${out_file_path} 0)
+endfunction()
+
+function(configure_file_and_include_required tmpl_file_path out_file_path)
+  configure_file_and_include_impl(${tmpl_file_path} ${out_file_path} 1)
+endfunction()
+
 function(exclude_paths_from_path_list include_list_var path_list exclude_path_list verbose_flag)
   if(verbose_flag)
     message(STATUS "(**) exclude_paths_from_path_list: exclude list: ${exclude_path_list}")

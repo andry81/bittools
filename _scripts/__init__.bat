@@ -3,7 +3,8 @@
 call :CANONICAL_PATH "%%~dp0.."
 set "PROJECT_ROOT=%PATH_VALUE%"
 
-set "ENV_ROOT=d:/3dparty/vc14_x86"
+set "_3DPARTY_ROOT=d:/3dparty"
+set "ENV_ROOT=%_3DPARTY_ROOT%/vc14_x86"
 
 set "CMAKE_OUTPUT_ROOT=%PROJECT_ROOT%/_out"
 
@@ -15,7 +16,7 @@ set "CMAKE_CPACK_ROOT=%CMAKE_OUTPUT_ROOT%/pack"
 
 set "CMAKE_GENERATOR_TOOLSET=Visual Studio 14 2015"
 
-set "NSIS_INSTALL_ROOT=c:\nsis\3.x"
+set "NSIS_INSTALL_ROOT=c:/builds/nsis3/rel1/nsis_install"
 
 if not defined NEST_LVL set NEST_LVL=0
 

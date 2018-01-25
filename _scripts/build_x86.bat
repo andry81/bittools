@@ -6,7 +6,7 @@ call "%%~dp0__init__.bat" || goto :EOF
 
 set /A NEST_LVL+=1
 
-call "%%~dp0configure.bat" || goto EXIT
+call "%%~dp0configure_gen.bat" || goto EXIT
 echo.
 
 pushd "%CMAKE_BUILD_ROOT%" & (

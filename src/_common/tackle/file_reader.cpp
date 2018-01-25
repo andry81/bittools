@@ -1,6 +1,7 @@
 #include "tackle/file_reader.hpp"
-#include "utility/assert.hpp"
 #include "utility/utility.hpp"
+#include "utility/assert.hpp"
+#include "utility/math.hpp"
 
 #include <boost/preprocessor/cat.hpp>
 
@@ -9,7 +10,6 @@
 
 namespace
 {
-    const uint32_t uint32_max = (std::numeric_limits<uint32_t>::max)();
     using utility::Buffer;
 }
 
@@ -79,17 +79,17 @@ namespace tackle
         if (!chunk_sizes_.empty()) {
             // add max if not 0
             if (chunk_sizes_.back()) {
-                chunk_sizes_.push_back(uint32_max);
+                chunk_sizes_.push_back(math::uint32_max);
             }
         }
         else {
-            chunk_sizes_.push_back(uint32_max);
+            chunk_sizes_.push_back(math::uint32_max);
         }
 
         do {
             for (auto chunk_size : chunk_sizes_) {
                 if (!chunk_size) goto exit_; // stop on 0
-                if (chunk_size != uint32_max) {
+                if (chunk_size != math::uint32_max) {
                     next_read_size = chunk_size;
                     buf_read_size = uint64_t(chunk_size) < min_buf_size ? min_buf_size : uint64_t(chunk_size);
                 }

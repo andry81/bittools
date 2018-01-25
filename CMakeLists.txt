@@ -1,4 +1,54 @@
 cmake_minimum_required(VERSION 3.0)
+
+###############################################################################
+## cmake policy change ########################################################
+###############################################################################
+
+#  Policy CMP0057 is not set: Support new IN_LIST if() operator.  Run "cmake
+#  --help-policy CMP0057" for policy details.  Use the cmake_policy command to
+#  set the policy and suppress this warning.
+#
+#  IN_LIST will be interpreted as an operator when the policy is set to NEW.
+#  Since the policy is not set the OLD behavior will be used.
+cmake_policy(SET CMP0057 NEW) # cmake >= 3.3
+
+###############################################################################
+## cmake builtin search paths and includes ####################################
+###############################################################################
+
+LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+
+include(Common)
+
+###############################################################################
+## discover environment variables for local environment file ##################
+###############################################################################
+
+discover_variable(_3DPARTY_ROOT "3dparty root")
+discover_variable(ENV_ROOT "environment root directory")
+discover_variable(ENV_FILENAME "environment file name")
+discover_variable(NSIS_INSTALL_ROOT "cpack nsis intall root")
+
+# generates `environment_local.cmake` from the `environment_local.cmake.in` if not done yet and includes it unconditionally
+configure_file_and_include_required(${CMAKE_CURRENT_LIST_DIR}/environment_local.cmake.in ${CMAKE_CURRENT_LIST_DIR}/environment_local.cmake)
+
+# searches `environment.cmake` and included it, basically this environment contains rest of environment additional to the local environment
+include(FindEnvironment)
+
+###############################################################################
+## discover rest of environment variables #####################################
+###############################################################################
+
+discover_variable(LINK_TYPE "linkage type")
+if (NOT LINK_TYPE)
+  set(LINK_TYPE "static") # static linkage by default
+endif()
+discover_variable(BOOST_ROOT "boost")
+
+###############################################################################
+## projects description #######################################################
+###############################################################################
+
 project(bittools)
 
 set(XORFILE_TARGET "xorfile")
@@ -17,21 +67,6 @@ endif()
 if(NOT CPACK_OUTPUT_FILE_PREFIX)
   set(CPACK_OUTPUT_FILE_PREFIX ${CMAKE_CURRENT_LIST_DIR}/pack)
 endif()
-
-LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
-
-include(Common)
-include(UseEnvironment)
-
-###############################################################################
-## environment discover #######################################################
-###############################################################################
-
-discover_variable(LINK_TYPE "linkage type")
-if (NOT LINK_TYPE)
-  set(LINK_TYPE "static")
-endif()
-discover_variable(BOOST_ROOT "boost")
 
 ###############################################################################
 ## file globbing ##############################################################
@@ -170,6 +205,7 @@ print_flags(
 ## dependencies ###############################################################
 ###############################################################################
 
+# boost
 if(LINK_TYPE STREQUAL "dynamic")
   set(Boost_USE_STATIC_LIBS OFF)
   set(Boost_USE_STATIC_RUNTIME OFF)
@@ -178,13 +214,10 @@ elseif (LINK_TYPE STREQUAL "static")
   set(Boost_USE_STATIC_LIBS ON)
   set(Boost_USE_STATIC_RUNTIME ON)
   set(Boost_USE_MULTITHREADED ON)
-  #set_target_properties(${EXE_TARGET_NAME} PROPERTIES
-  #  COMPILE_OPTIONS -DBOOST_RUNTIME_STATIC_LINK # workaround for unresolved symbols
-  #)
 endif()
 
 find_package(Boost REQUIRED COMPONENTS filesystem program_options system)
-message(STATUS "Boost version: " ${Boost_VERSION} " Location: " ${BOOST_ROOT})
+message(STATUS "(*) Found `Boost`: ${Boost_VERSION} Location: \"${BOOST_ROOT}\" Libs: [${Boost_LIBRARIES}]")
 
 if(Boost_FOUND)
   add_definitions(-DBOOST_ALL_NO_LIB) # Disable auto-linking
@@ -218,12 +251,12 @@ endif()
 # relative to the executable.
 install(TARGETS ${ALL_TARGETS} DESTINATION $<CONFIGURATION>)
 
-## This is basically a repeat of the file copy instruction that copies the
-## resources in the build directory, but here we tell cmake that we want it
-## in the package.
-install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/res
-  DESTINATION $<CONFIGURATION>
-  PATTERN "*/~*" EXCLUDE)
+### This is basically a repeat of the file copy instruction that copies the
+### resources in the build directory, but here we tell cmake that we want it
+### in the package.
+#install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/res
+#  DESTINATION $<CONFIGURATION>
+#  PATTERN "*/~*" EXCLUDE)
 
 # must be after all `install` commands!
 foreach(target ${EXECUTABLE_TARGETS})
@@ -263,7 +296,7 @@ add_custom_target(bundle
     -D "CPACK_BUNDLE_TEMPLATE_CONFIG_FILE=${CPACK_BUNDLE_TEMPLATE_CONFIG_FILE}"
     -D "CPACK_BUNDLE_OUTPUT_CONFIG_FILE=${CPACK_BUNDLE_OUTPUT_CONFIG_FILE}"
     # this one must be after all `-D`s
-    -P "${CMAKE_CURRENT_LIST_DIR}/CPackMakeConfig.cmake"
+    -P "${CMAKE_CURRENT_LIST_DIR}/cmake/CPackMakeConfig.cmake"
   COMMAND "${CMAKE_CPACK_COMMAND}" 
     -G "NSIS"
     -C "$<CONFIGURATION>"
