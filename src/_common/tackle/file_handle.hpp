@@ -1,6 +1,9 @@
 #pragma once
 
-#include "tackle/smart_handle.hpp"
+#include <tacklelib.hpp>
+
+#include <tackle/smart_handle.hpp>
+
 
 namespace tackle
 {
@@ -17,7 +20,7 @@ namespace tackle
             if (p) {
                 fclose((FILE *)p);
             }
-        };
+        }
 
     private:
         std::string m_file_path;

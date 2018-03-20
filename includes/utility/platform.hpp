@@ -1,6 +1,9 @@
 #pragma once
 
-#include "utility/preprocessor.hpp"
+#include <tacklelib.hpp>
+
+#include <utility/preprocessor.hpp>
+
 
 // linux, also other platforms (Hurd etc) that use GLIBC, should these really have their own config headers though?
 #if defined(linux) || defined(__linux) || defined(__linux__) || defined(__GNU__) || defined(__GLIBC__)
@@ -64,16 +67,53 @@
 #   error "Unknown compiler"
 #endif
 
+#if !defined(DEFINE_FORCE_INLINE_TO_FORCE_NO_INLINE)
+
 #if !defined(_DEBUG) && defined(ENABLE_FORCE_INLINE) && !defined(DISABLE_FORCE_INLINE)
-#define FORCE_INLINE __forceinline
+#if defined(__GNUC__)
+#define FORCE_INLINE                __attribute__((always_inline))
+#define FORCE_INLINE_ALWAYS         FORCE_INLINE
+#elif defined(_MSC_VER)
+#define FORCE_INLINE                __forceinline
+#define FORCE_INLINE_ALWAYS         FORCE_INLINE
+#endif
 #else
-#define FORCE_INLINE inline
+#define FORCE_INLINE                inline
+#define FORCE_INLINE_ALWAYS         FORCE_INLINE
+#endif
+
+#else
+
+#if defined(__GNUC__)
+#define FORCE_INLINE                __attribute__((noinline))
+#elif defined(_MSC_VER)
+#define FORCE_INLINE                __declspec(noinline)
+#endif
+
+#define FORCE_INLINE_ALWAYS         inline
+
+#endif
+
+#if !defined(_DEBUG) && defined(ENABLE_FORCE_NO_INLINE) && !defined(DISABLE_FORCE_NO_INLINE)
+#if defined(__GNUC__)
+#define FORCE_NO_INLINE __attribute__((noinline))
+#elif defined(_MSC_VER)
+#define FORCE_NO_INLINE __declspec(noinline)
+#endif
+#else
+#define FORCE_NO_INLINE
 #endif
 
 #if defined(_DEBUG) || !defined(DISABLE_BUILTIN_MAINTAIN_SUPPORT_IN_RELEASE)
-#define BUILTIN_MAINTAIN_OR_PASS_TRUE(x) !!(x)
-#define BUILTIN_MAINTAIN_OR_PASS_FALSE(x) !(x)
+#define BUILTIN_MAINTAIN_OR_PASS_TRUE(x) ((x) ? true : false)
+#define BUILTIN_MAINTAIN_OR_PASS_FALSE(x) ((x) ? false : true)
 #else
 #define BUILTIN_MAINTAIN_OR_PASS_TRUE(x) (true)
 #define BUILTIN_MAINTAIN_OR_PASS_FALSE(x) (false)
+#endif
+
+#ifdef _DEBUG
+#define DEBUG_RELEASE_EXPR(debug_exp, release_exp) debug_exp
+#else
+#define DEBUG_RELEASE_EXPR(debug_exp, release_exp) release_exp
 #endif

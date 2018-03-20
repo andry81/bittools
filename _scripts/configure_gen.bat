@@ -6,15 +6,31 @@ call "%%~dp0__init__.bat" || goto :EOF
 
 set /A NEST_LVL+=1
 
-pushd "%CMAKE_BUILD_ROOT%" & (
-  call :CMD cmake ^
-    "%%PROJECT_ROOT%%" ^
-    -G "%%CMAKE_GENERATOR_TOOLSET%%" ^
-    "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=%%CMAKE_BIN_ROOT%%" ^
-    "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=%%CMAKE_LIB_ROOT%%" ^
-    "-DCMAKE_INSTALL_PREFIX=%%CMAKE_INSTALL_ROOT%%" ^
-    "-DCPACK_OUTPUT_FILE_PREFIX=%%CMAKE_CPACK_ROOT%%" ^
-    || ( popd & goto EXIT )
+set "CONFIGURE_FILE_IN=%~dp0..\%~nx0.in"
+
+rem for safe parse
+setlocal ENABLEDELAYEDEXPANSION
+
+rem load command line from file
+set "CMAKE_CMD_LINE="
+for /F "usebackq eol=# tokens=* delims=" %%i in ("%CONFIGURE_FILE_IN%") do (
+  if defined CMAKE_CMD_LINE (
+    set "CMAKE_CMD_LINE=!CMAKE_CMD_LINE! %%i"
+  ) else (
+    set "CMAKE_CMD_LINE=%%i"
+  )
+)
+
+rem safe variable return over endlocal with delayed expansion
+for /F "eol=# tokens=* delims=" %%i in ("!CMAKE_CMD_LINE!") do (
+  endlocal
+  set "CMAKE_CMD_LINE=%%i"
+)
+
+pushd "%CMAKE_BUILD_ROOT%" && (
+  (
+    call :CMD cmake %CMAKE_CMD_LINE%
+  ) || ( popd & goto EXIT )
   popd
 )
 
@@ -27,5 +43,7 @@ exit /b
 
 :CMD
 echo.^>%*
-(%*)
+(
+  %*
+)
 exit /b

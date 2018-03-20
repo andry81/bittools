@@ -1,7 +1,16 @@
-set(ENV{_3DPARTY_ROOT} "")
-set(ENV{ENV_ROOT} "D:/3dparty/vc14_x86")
-set(ENV{CMAKE_RUNTIME_OUTPUT_DIRECTORY} "W:/Work/MyProjects/_contools/sf~contools--bittools/_out/bin")
-set(ENV{CMAKE_LIBRARY_OUTPUT_DIRECTORY} "W:/Work/MyProjects/_contools/sf~contools--bittools/_out/lib")
-set(ENV{CMAKE_INSTALL_PREFIX} "W:/Work/MyProjects/_contools/sf~contools--bittools/_out/install")
-set(ENV{CPACK_OUTPUT_FILE_PREFIX} "W:/Work/MyProjects/_contools/sf~contools--bittools/_out/pack")
-set(ENV{NSIS_INSTALL_ROOT} "")
+# CAUTION:
+#  In case of usage the QtCreator there is set of special broken cases you have to avoid:
+#  1. Invalid characters in paths: `(`, `)` and `.`.
+#  2. Non english locale in paths.
+
+set(ENV{CMAKE_RUNTIME_OUTPUT_DIRECTORY} "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+set(ENV{CMAKE_LIBRARY_OUTPUT_DIRECTORY} "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+set(ENV{CMAKE_INSTALL_PREFIX} "${CMAKE_INSTALL_PREFIX}")
+set(ENV{CPACK_OUTPUT_FILE_PREFIX} "${CPACK_OUTPUT_FILE_PREFIX}")
+
+# user custom values
+
+set(ENV{_3DPARTY_LOCAL_ROOT} "${PROJECT_ROOT}/_3dparty")
+set(ENV{ENV_ROOT} "d:/3dparty/vc14_x86")
+
+set(ENV{NSIS_INSTALL_ROOT} "c:/builds/nsis3/rel1/nsis_install")

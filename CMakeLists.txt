@@ -17,33 +17,25 @@ cmake_policy(SET CMP0057 NEW) # cmake >= 3.3
 ###############################################################################
 
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
 
 include(Common)
+include(Qt)
 
 ###############################################################################
-## discover environment variables for local environment file ##################
+## discover environment variables #############################################
 ###############################################################################
 
-discover_variable(_3DPARTY_ROOT "3dparty root")
-discover_variable(ENV_ROOT "environment root directory")
-discover_variable(ENV_FILENAME "environment file name")
-discover_variable(NSIS_INSTALL_ROOT "cpack nsis intall root")
+configure_environment()
 
-# generates `environment_local.cmake` from the `environment_local.cmake.in` if not done yet and includes it unconditionally
-configure_file_and_include_required(${CMAKE_CURRENT_LIST_DIR}/environment_local.cmake.in ${CMAKE_CURRENT_LIST_DIR}/environment_local.cmake)
-
-# searches `environment.cmake` and included it, basically this environment contains rest of environment additional to the local environment
-include(FindEnvironment)
-
-###############################################################################
-## discover rest of environment variables #####################################
-###############################################################################
-
-discover_variable(LINK_TYPE "linkage type")
+discover_variable(LINK_TYPE STRING "linkage type")
 if (NOT LINK_TYPE)
-  set(LINK_TYPE "static") # static linkage by default
+  set(LINK_TYPE "static") # linkage by default
 endif()
-discover_variable(BOOST_ROOT "boost")
+
+discover_variable(_3DPARTY_LOCAL_ROOT PATH "local 3dparty root")
+discover_variable(NSIS_INSTALL_ROOT PATH "cpack nsis intall root")
+discover_variable(BOOST_ROOT PATH "boost")
 
 ###############################################################################
 ## projects description #######################################################
@@ -55,8 +47,7 @@ set(XORFILE_TARGET "xorfile")
 set(MIRRORFILE_TARGET "mirrorfile")
 set(GENCRCTBL_TARGET "gencrctbl")
 
-set(EXECUTABLE_TARGETS ${XORFILE_TARGET};${MIRRORFILE_TARGET};${GENCRCTBL_TARGET})
-set(ALL_TARGETS ${EXECUTABLE_TARGETS})
+set(ALL_TARGETS ${XORFILE_TARGET};${MIRRORFILE_TARGET};${GENCRCTBL_TARGET})
 
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin)
@@ -73,20 +64,24 @@ endif()
 ###############################################################################
 
 # These instructions search the directory tree when cmake is
-# invoked and put all files that match the pattern in the variables 
-# `sources` and `data`.
-file(GLOB_RECURSE sources_common src/*.cpp src/*.h*)
+# invoked and put all files that match the pattern in respective variables.
+file(GLOB_RECURSE all_sources
+  ${CMAKE_CURRENT_LIST_DIR}/src/*.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/includes/*.h*
+  ${CMAKE_CURRENT_LIST_DIR}/src/*.h*)
+
+set(common_sources ${all_sources})
 
 # exclude standalone sources
 foreach(target ${ALL_TARGETS})
-  exclude_paths_from_path_list(sources_common "${sources_common}" "/src/${target}/" 0)
+  exclude_paths_from_path_list(common_sources "${common_sources}" "/src/${target}/" 0)
 endforeach()
 
 # exclude tests sources
-exclude_paths_from_path_list(sources_common "${sources_common}" "/tests/" 0)
+exclude_paths_from_path_list(common_sources "${common_sources}" "/tests/" 0)
 
 # exclude by pattern
-exclude_paths_from_path_list(sources_common "${sources_common}" "/~" 0)
+exclude_paths_from_path_list(common_sources "${common_sources}" "/~" 0)
 
 # generate standalone sources groups
 foreach(target ${ALL_TARGETS})
@@ -109,11 +104,6 @@ exclude_paths_from_path_list(headers_test "${headers_test}" "/~" 0)
 ## exclude by pattern
 #exclude_paths_from_path_list(sources_test "${sources_test}" "/~" 0)
 
-file(GLOB_RECURSE resources res/*)
-
-# exclude by pattern
-exclude_paths_from_path_list(resources "${resources}" "/~" 0)
-
 # You can use set(sources src/main.cpp) etc if you don't want to
 # use globbing to find files automatically.
 
@@ -122,23 +112,8 @@ exclude_paths_from_path_list(resources "${resources}" "/~" 0)
 ###############################################################################
 
 if(WIN32 AND MSVC)
-  if (LINK_TYPE STREQUAL "dynamic")
-    foreach(flag_var
-            CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
-            CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-       if(${flag_var} MATCHES "/MT")
-          string(REGEX REPLACE "/MT" "/MD" ${flag_var} "${${flag_var}}")
-       endif()
-    endforeach()
-  elseif (LINK_TYPE STREQUAL "static")
-    foreach(flag_var
-            CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
-            CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-       if(${flag_var} MATCHES "/MD")
-          string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-       endif()
-    endforeach()
-  endif()
+  # set global linkage type (dynamic/static)
+  set_global_link_type(${LINK_TYPE})
 
   # remove optimization parameters from global flags, do control it explicitly per source file or target basis
   remove_global_optimization_flags("*;DEBUG;RELEASE;MINSIZEREL;RELWITHDEBINFO")
@@ -152,60 +127,11 @@ endif()
 print_global_flags()
 
 ###############################################################################
-## target definitions #########################################################
-###############################################################################
-
-# The data is just added to the executable, because in some IDEs (QtCreator) 
-# files are invisible when they are not explicitly part of the project.
-foreach(target ${EXECUTABLE_TARGETS})
-  add_executable(${target} ${sources_common} ${sources_${target}}) #${data_${target}})
-
-  # This allows to include files relative to the root of the src directory with a <> pair
-  target_include_directories(${target}
-    PUBLIC
-      ${CMAKE_CURRENT_LIST_DIR}/includes
-      ${CMAKE_CURRENT_LIST_DIR}/src/_common
-      ${CMAKE_CURRENT_LIST_DIR}/src
-  )
-
-  # local optimization per target basis
-  add_target_compile_properties("${target}"
-    $<$<CONFIG:RELEASE>:/Ox>  # Full Optimization
-    $<$<CONFIG:RELEASE>:/Ob2> # Inline Function Expansion: Any Suitable
-    #$<$<CONFIG:RELEASE>:/Oi>  # Enable Intrinsic Functions
-    $<$<CONFIG:RELEASE>:/Ot>  # Enable Intrinsic Functions
-    $<$<CONFIG:RELEASE>:/GL>  # Whole Program Optimization
-    $<$<CONFIG:DEBUG>:/Od>    # Disabled
-    /MP
-  )
-  add_target_link_properties("${EXE_TARGET_NAME}" RELEASE
-    "/LTCG" # Use Link Time Code Generation
-  )
-endforeach()
-
-get_target_property(COMPILE_OPTIONS_${XORFILE_TARGET} ${XORFILE_TARGET} COMPILE_OPTIONS)
-get_target_property(LINK_FLAGS_${XORFILE_TARGET}_DEBUG ${XORFILE_TARGET} LINK_FLAGS_DEBUG)
-get_target_property(LINK_FLAGS_${XORFILE_TARGET}_RELEASE ${XORFILE_TARGET} LINK_FLAGS_RELEASE)
-get_target_property(LINK_FLAGS_${XORFILE_TARGET}_MINSIZEREL ${XORFILE_TARGET} LINK_FLAGS_MINSIZEREL)
-get_target_property(LINK_FLAGS_${XORFILE_TARGET}_RELWITHDEBINFO ${XORFILE_TARGET} LINK_FLAGS_RELWITHDEBINFO)
-
-print_flags(
-  COMPILE_OPTIONS_${XORFILE_TARGET}
-  LINK_FLAGS_${XORFILE_TARGET}_DEBUG
-  LINK_FLAGS_${XORFILE_TARGET}_RELEASE
-  LINK_FLAGS_${XORFILE_TARGET}_MINSIZEREL
-  LINK_FLAGS_${XORFILE_TARGET}_RELWITHDEBINFO
-)
-
-## This copies all resource files in the build directory.
-## We need this, because we want to work with paths relative to the executable.
-#file(COPY ${data} DESTINATION resources)
-
-###############################################################################
-## dependencies ###############################################################
+## dynamic dependencies #######################################################
 ###############################################################################
 
 # boost
+
 if(LINK_TYPE STREQUAL "dynamic")
   set(Boost_USE_STATIC_LIBS OFF)
   set(Boost_USE_STATIC_RUNTIME OFF)
@@ -225,23 +151,73 @@ if(Boost_FOUND)
     add_definitions(-DBOOST_ALL_DYN_LINK)
   endif()
   add_definitions(-DBOOST_SCOPE_EXIT_CONFIG_USE_LAMBDAS) # Force to use C++11 lambda functions to implement scope exits.
-
-  foreach(target ${ALL_TARGETS})
-    target_include_directories(${target}
-      PUBLIC
-        ${Boost_INCLUDE_DIRS}
-    )
-  endforeach()
-
-  link_directories(${Boost_LIBRARY_DIRS})
-  foreach(target ${ALL_TARGETS})
-    target_link_libraries(${target}
-      PUBLIC
-        ${Boost_LIBRARIES}
-    )
-  endforeach()
 endif()
 
+###############################################################################
+## target definitions #########################################################
+###############################################################################
+
+# The data is just added to the executable, because in some IDEs (QtCreator) 
+# files are invisible when they are not explicitly part of the project.
+foreach(target ${ALL_TARGETS})
+  add_executable(${target} ${common_sources} ${sources_${target}}) #${data_${target}})
+
+  # This allows to include files relative to the root of the src directory with a <> pair
+  target_include_directories(${target}
+    PUBLIC
+      ${CMAKE_CURRENT_LIST_DIR}/src
+      ${CMAKE_CURRENT_LIST_DIR}/src/_common
+      ${CMAKE_CURRENT_LIST_DIR}/includes
+      ${Boost_INCLUDE_DIRS}
+  )
+
+  link_directories(${Boost_LIBRARY_DIRS})
+
+  target_link_libraries(${target}
+    PUBLIC
+      ${Boost_LIBRARIES}
+  )
+endforeach()
+
+###############################################################################
+## target optimization ########################################################
+###############################################################################
+
+# local optimization per target basis
+add_target_compile_properties("${ALL_TARGETS}"
+  $<$<CONFIG:RELEASE>:/Ox>  # Full Optimization
+  $<$<CONFIG:RELEASE>:/Ob2> # Inline Function Expansion: Any Suitable
+  #$<$<CONFIG:RELEASE>:/Oi>  # Enable Intrinsic Functions
+  $<$<CONFIG:RELEASE>:/Ot>  # Enable Intrinsic Functions
+  $<$<CONFIG:RELEASE>:/GL>  # Whole Program Optimization
+  $<$<CONFIG:DEBUG>:/Od>    # Disabled
+  /MP
+)
+add_target_link_properties("${ALL_TARGETS}" RELEASE
+  "/LTCG" # Use Link Time Code Generation
+)
+
+get_target_property(COMPILE_OPTIONS_${XORFILE_TARGET} ${XORFILE_TARGET} COMPILE_OPTIONS)
+get_target_property(LINK_FLAGS_${XORFILE_TARGET}_DEBUG ${XORFILE_TARGET} LINK_FLAGS_DEBUG)
+get_target_property(LINK_FLAGS_${XORFILE_TARGET}_RELEASE ${XORFILE_TARGET} LINK_FLAGS_RELEASE)
+get_target_property(LINK_FLAGS_${XORFILE_TARGET}_MINSIZEREL ${XORFILE_TARGET} LINK_FLAGS_MINSIZEREL)
+get_target_property(LINK_FLAGS_${XORFILE_TARGET}_RELWITHDEBINFO ${XORFILE_TARGET} LINK_FLAGS_RELWITHDEBINFO)
+
+###############################################################################
+## target flags ###############################################################
+###############################################################################
+
+print_flags(
+  COMPILE_OPTIONS_${XORFILE_TARGET}
+  LINK_FLAGS_${XORFILE_TARGET}_DEBUG
+  LINK_FLAGS_${XORFILE_TARGET}_RELEASE
+  LINK_FLAGS_${XORFILE_TARGET}_MINSIZEREL
+  LINK_FLAGS_${XORFILE_TARGET}_RELWITHDEBINFO
+)
+
+## This copies all resource files in the build directory.
+## We need this, because we want to work with paths relative to the executable.
+#file(COPY ${data} DESTINATION resources)
 
 ###############################################################################
 ## packaging ##################################################################
@@ -259,7 +235,7 @@ install(TARGETS ${ALL_TARGETS} DESTINATION $<CONFIGURATION>)
 #  PATTERN "*/~*" EXCLUDE)
 
 # must be after all `install` commands!
-foreach(target ${EXECUTABLE_TARGETS})
+foreach(target ${ALL_TARGETS})
   install(CODE "
     include(BundleUtilities)
     fixup_bundle(\"\${CMAKE_INSTALL_PREFIX}/\${CMAKE_INSTALL_CONFIG_NAME}/${target}.exe\" \"\" \"${Boost_LIBRARY_DIRS}\")

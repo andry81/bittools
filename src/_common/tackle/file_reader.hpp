@@ -1,8 +1,11 @@
 #pragma once
 
-#include "utility/platform.hpp"
-#include "utility/utility.hpp"
-#include "tackle/file_handle.hpp"
+#include <tacklelib.hpp>
+
+#include <utility/platform.hpp>
+#include <utility/utility.hpp>
+
+#include <tackle/file_handle.hpp>
 
 #include <vector>
 

@@ -1,6 +1,9 @@
 #pragma once
 
+#include <tacklelib.hpp>
+
 #include <boost/smart_ptr.hpp>
+
 
 namespace tackle
 {
@@ -87,7 +90,7 @@ namespace tackle
     template<typename T>
     SmartHandle<T>::operator bool() const
     {
-        return !!m_pv.get();
+        return m_pv.get() ? true : false;
     }
 
     template<typename T>

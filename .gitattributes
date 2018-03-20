@@ -1,4 +1,5 @@
 * text=auto !eol
+/.svnignore -text
 /CMakeLists.txt -text
 /README_EN.txt -text
 _scripts/__init__.bat -text
@@ -13,12 +14,21 @@ cmake/CPackMakeConfig.cmake -text
 cmake/Common.cmake -text
 cmake/ConfigureFile.cmake -text
 cmake/FindEnvironment.cmake -text
+cmake/Qt.cmake -text
+/configure_gen.bat.in -text
+/configure_nogen.bat.in -text
 /environment_local.cmake.in -text
+includes/tacklelib.hpp -text
+includes/utility/platform.hpp -text
+includes/utility/preprocessor.hpp -text
+src/_common/debug.hpp -text
+src/_common/optimization.hpp -text
 src/_common/tackle/file_handle.cpp -text
 src/_common/tackle/file_handle.hpp -text
 src/_common/tackle/file_reader.cpp -text
 src/_common/tackle/file_reader.hpp -text
 src/_common/tackle/smart_handle.hpp -text
+src/_common/tacklelib.hpp -text
 src/_common/utility/assert.hpp -text
 src/_common/utility/crc.cpp -text
 src/_common/utility/crc.hpp -text
@@ -27,8 +37,7 @@ src/_common/utility/debug.cpp -text
 src/_common/utility/debug.hpp -text
 src/_common/utility/hash.hpp -text
 src/_common/utility/math.hpp -text
-src/_common/utility/platform.hpp -text
-src/_common/utility/preprocessor.hpp -text
+src/_common/utility/static_assert.hpp -text
 src/_common/utility/type_traits.hpp -text
 src/_common/utility/utility.cpp -text
 src/_common/utility/utility.hpp -text

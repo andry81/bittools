@@ -1,15 +1,85 @@
-macro(cache_or_discover_variable var desc)
-  if(NOT ${var} AND NOT "$ENV{${var}}" STREQUAL "")
-    set(${var} $ENV{${var}} CACHE PATH "${desc}")
-    set_property(CACHE ${var} PROPERTY TYPE PATH)
-  endif()
+# CAUTION:
+# 1. Be careful with the `set(... CACHE ...)` because it removes the original variable!
+#    From documation:
+#     "Finally, whenever a cache variable is added or modified by a command,
+#     CMake also removes the normal variable of the same name from the current
+#     scope so that an immediately following evaluation of it will expose the
+#     newly cached value."
+# 2. Be careful with the `set(... CACHE ... FORCE)` because it overrides a value passed by
+#    the `-D` cmake command line parameter!
+#
+
+macro(include_and_echo path)
+  message(STATUS "(*) Include: \"${path}\"")
+  include(${path})
 endmacro()
 
-macro(discover_variable var desc)
-  if(NOT "$ENV{${var}}" STREQUAL "")
-    set(${var} $ENV{${var}} CACHE PATH "${desc}" FORCE)
-    set_property(CACHE ${var} PROPERTY TYPE PATH)
+function(cache_or_discover_variable var cache_type desc)
+  if(NOT ${var} AND NOT "$ENV{${var}}" STREQUAL "")
+    set(${var} $ENV{${var}} CACHE ${cache_type} ${desc}) # before the normal set, overwise it will remove the normal variable!
+    set(${var} $ENV{${var}} PARENT_SCOPE)
   endif()
+endfunction()
+
+function(discover_variable var cache_type desc)
+  # save cached value
+  set(cached_var ${${var}})
+
+  unset(${var} CACHE)
+
+  set(uncached_var ${${var}})
+
+  if(NOT uncached_var)
+    if(NOT "$ENV{${var}}" STREQUAL "")
+      set(${var} $ENV{${var}} CACHE ${cache_type} ${desc}) # before the normal set, overwise it will remove the normal variable!
+      set(${var} $ENV{${var}} PARENT_SCOPE)
+    endif()
+  elseif(NOT "$ENV{${var}}" STREQUAL "")
+    set(${var} $ENV{${var}} CACHE ${cache_type} ${desc}) # before the normal set, overwise it will remove the normal variable!
+    # restore uncached variable removed by previous set with CACHE
+    set(${var} ${uncached_var})
+  else()
+    # reset the cache to the normal value
+    set(${var} ${uncached_var} CACHE ${cache_type} ${desc})
+    # restore uncached variable removed by previous set with CACHE
+    set(${var} ${uncached_var})
+  endif()
+endfunction()
+
+macro(configure_environment)
+  # CAUTION:
+  #   We have to detect the executor to check if the `environment_local.cmake`
+  #   has to be already generated. If not we must stop immediately and warn the
+  #   user to run the `_script/configure_nogen` BEFORE cmake direct execution by
+  #   the IDE!
+
+  detect_qt_creator()
+  if (IS_EXECUTED_BY_QT_CREATOR AND NOT EXISTS ${CMAKE_CURRENT_LIST_DIR}/environment_local.cmake)
+    message(FATAL_ERROR "(*) The `environment_local.cmake` is not properly generated, use the `_scripts/configure_nogen` to generage the file and then edit values manually!")
+  endif()
+
+  if (NOT EXISTS ${CMAKE_CURRENT_LIST_DIR}/environment_local.cmake)
+    # generates `environment_local.cmake` from the `environment_local.cmake.in` if not done yet and includes it unconditionally
+    configure_file_and_include_required(${CMAKE_CURRENT_LIST_DIR}/environment_local.cmake.in ${CMAKE_CURRENT_LIST_DIR}/environment_local.cmake)
+  endif()
+
+  # include local environment
+  include_and_echo(environment_local.cmake)
+
+  # CAUTION:
+  #   IDE like QtCreator uses `CMakeLists.txt.user` file to store and load cached
+  #   versions of cmake environment variables. But it's change in cmake won't
+  #   promote respective change to IDE. To make it changed you have to CLOSE IDE
+  #   AND DELETE FILE WITH CACHED VARIABLES - `CMakeLists.txt.user`!
+
+  discover_variable(ENV_ROOT PATH "environment root directory")
+  discover_variable(ENV_FILENAME STRING "environment file name")
+
+  # searches `environment.cmake` and included it, basically this environment contains global environment additional to the local environment
+  include(FindEnvironment)
+
+  # in case of intersection reinclude the local environment
+  include_and_echo(environment_local.cmake)
 endmacro()
 
 function(configure_file_and_include_impl tmpl_file_path out_file_path is_required)
@@ -73,9 +143,9 @@ function(exclude_paths_from_path_list include_list_var path_list exclude_path_li
   set(${include_list_var} ${include_list} PARENT_SCOPE)
 endfunction()
 
-function(exclude_file_path_from_path_list include_list_var path_list exclude_file_path_list verbose_flag)
+function(exclude_file_paths_from_path_list include_list_var path_list exclude_file_path_list verbose_flag)
   if(verbose_flag)
-    message(STATUS "(**) exclude_file_path_from_path_list: exclude list: ${exclude_file_path_list}")
+    message(STATUS "(**) exclude_file_paths_from_path_list: exclude list: ${exclude_file_path_list}")
   endif()
 
   set(include_list "")
@@ -85,7 +155,7 @@ function(exclude_file_path_from_path_list include_list_var path_list exclude_fil
     foreach(exclude_file_path ${exclude_file_path_list})
       if("${path}|" MATCHES "(.*)${exclude_file_path}\\|")
         if(verbose_flag)
-          message(STATUS "(**) exclude_file_path_from_path_list: excluded: ${path}")
+          message(STATUS "(**) exclude_file_paths_from_path_list: excluded: ${path}")
         endif()
         set(_excluded 1)
         break()
@@ -97,10 +167,125 @@ function(exclude_file_path_from_path_list include_list_var path_list exclude_fil
   endforeach()
 
   if(verbose_flag)
-    message(STATUS "(**) exclude_file_path_from_path_list: include list: ${include_list}")
+    message(STATUS "(**) exclude_file_paths_from_path_list: include list: ${include_list}")
   endif()
 
   set(${include_list_var} ${include_list} PARENT_SCOPE)
+endfunction()
+
+function(include_paths_from_path_list include_list_var path_list include_path_list verbose_flag)
+  if(verbose_flag)
+    message(STATUS "(**) include_paths_from_path_list: include list: ${include_path_list}")
+  endif()
+
+  set(include_list "")
+
+  foreach(path ${path_list})
+    foreach(include_path ${include_path_list})
+      if("${path}" MATCHES "(.*)${include_path}(.*)")
+        if(verbose_flag)
+          message(STATUS "(**) include_paths_from_path_list: included: ${path}")
+        endif()
+        list(APPEND include_list "${path}")
+      endif()
+    endforeach()
+  endforeach()
+
+  set(${include_list_var} ${include_list} PARENT_SCOPE)
+endfunction()
+
+function(include_file_paths_from_path_list include_list_var path_list include_file_path_list verbose_flag)
+  if(verbose_flag)
+    message(STATUS "(**) include_file_paths_from_path_list: include list: ${include_file_path_list}")
+  endif()
+
+  set(include_list "")
+
+  foreach(path ${path_list})
+    foreach(include_file_path ${include_file_path_list})
+      if("${path}|" MATCHES "(.*)${include_file_path}\\|")
+        if(verbose_flag)
+          message(STATUS "(**) include_file_paths_from_path_list: included: ${path}")
+        endif()
+        list(APPEND include_list "${path}")
+      endif()
+    endforeach()
+  endforeach()
+
+  set(${include_list_var} ${include_list} PARENT_SCOPE)
+endfunction()
+
+function(source_group_by_path_list group_path type path_list include_path_list verbose_flag)
+  set(include_list "")
+
+  foreach(path ${path_list})
+    foreach(include_path ${include_path_list})
+      if("${path}" MATCHES "(.*)${include_path}(.*)")
+        if(verbose_flag)
+          message(STATUS "(**) source_group_from_include_list: ${group_path} -> (${type}) \"${path}\"")
+        endif()
+        list(APPEND include_list ${path})
+      endif()
+    endforeach()
+  endforeach()
+
+  if(include_list)
+    source_group("${group_path}" ${type} ${include_list})
+  endif()
+endfunction()
+
+function(source_group_by_file_path_list group_path type path_list include_file_path_list verbose_flag)
+  set(include_list "")
+
+  foreach(path ${path_list})
+    foreach(include_file_path ${include_file_path_list})
+      if("${path}|" MATCHES "(.*)${include_file_path}\\|")
+        if(verbose_flag)
+          message(STATUS "(**) source_group_from_include_list: ${group_path} -> (${type}) \"${path}\"")
+        endif()
+        list(APPEND include_list ${path})
+      endif()
+    endforeach()
+  endforeach()
+
+  if(include_list)
+    source_group("${group_path}" ${type} ${include_list})
+  endif()
+endfunction()
+
+function(source_groups_from_dir_list source_group_root type path_dir_list path_glob_suffix)
+  string(REGEX REPLACE "/" "\\\\" source_group_root "${source_group_root}")
+
+  foreach(path_dir ${path_dir_list})
+    #message(STATUS path_dir=${path_dir})
+    if(NOT EXISTS ${path_dir}/)
+      continue()
+    endif()
+
+    file(GLOB_RECURSE children_list RELATIVE ${path_dir} "${path_dir}/${path_glob_suffix}")
+
+    set(group_path_dir_list "")
+
+    get_filename_component(abs_path_dir ${path_dir} ABSOLUTE)
+
+    foreach(child_path ${children_list})
+      get_filename_component(abs_child_path ${path_dir}/${child_path} ABSOLUTE)
+
+      file(RELATIVE_PATH child_rel_path ${abs_path_dir} ${abs_child_path})
+      if(child_rel_path)
+        get_filename_component(child_rel_dir ${child_rel_path} DIRECTORY)
+
+        string(REGEX REPLACE "/" "\\\\" source_group_dir "${child_rel_dir}")
+        if(source_group_root)
+          #message(STATUS "source_groups_from_dir_list: ${source_group_root}\\${source_group_dir} -> ${child_rel_path}")
+          source_group("${source_group_root}\\${source_group_dir}" ${type} "${path_dir}/${child_path}")
+        else()
+          #message(STATUS "source_groups_from_dir_list: ${source_group_dir} -> ${child_rel_path}")
+          source_group("${source_group_dir}" ${type} "${path_dir}/${child_path}")
+        endif()
+      endif()
+    endforeach()
+  endforeach()
 endfunction()
 
 function(add_pch_header create_pch_header from_pch_src to_pch_bin use_pch_header include_pch_header sources sources_out_var)
@@ -124,10 +309,10 @@ function(add_pch_header create_pch_header from_pch_src to_pch_bin use_pch_header
 
   set(pch_bin_file "${CMAKE_CURRENT_BINARY_DIR}/${to_pch_bin_fixed}")
 
-  exclude_file_path_from_path_list(sources_filtered "${sources_fixed}" "/.*\\.h.*" 0)
+  exclude_file_paths_from_path_list(sources_filtered "${sources_fixed}" "/.*\\.h.*" 0)
 
   string(REPLACE "." "\\." from_pch_src_regex ${from_pch_src})
-  exclude_file_path_from_path_list(sources_filtered "${sources_filtered}" "/${from_pch_src_regex}" 0)
+  exclude_file_paths_from_path_list(sources_filtered "${sources_filtered}" "/${from_pch_src_regex}" 0)
 
   set(use_and_include_pch_header "/Yu\"${use_pch_header_fixed}\"")
   if (include_pch_header)
@@ -184,6 +369,28 @@ function(fix_global_flags)
         string(REGEX REPLACE "${flag}" "${flag_uppercase}" ${flag_var} "${${flag_var}}")
         set(${flag_var} ${${flag_var}} PARENT_SCOPE)
       endforeach()
+    endforeach()
+  endif()
+endfunction()
+
+function(set_global_link_type type)
+  if(${type} STREQUAL "dynamic")
+    foreach(flag_var
+            CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
+            CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+      if(${flag_var} MATCHES "/MT")
+        string(REGEX REPLACE "/MT" "/MD" ${flag_var} "${${flag_var}}")
+        set(${flag_var} ${${flag_var}} PARENT_SCOPE)
+      endif()
+    endforeach()
+  elseif (${type} STREQUAL "static")
+    foreach(flag_var
+            CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
+            CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+      if(${flag_var} MATCHES "/MD")
+        string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+        set(${flag_var} ${${flag_var}} PARENT_SCOPE)
+      endif()
     endforeach()
   endif()
 endfunction()

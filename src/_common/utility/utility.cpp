@@ -1,6 +1,5 @@
-
-#include "utility/utility.hpp"
-#include "utility/assert.hpp"
+#include <utility/utility.hpp>
+#include <utility/assert.hpp>
 
 #include <boost/filesystem.hpp>
 
@@ -13,6 +12,102 @@ namespace boost
 
 namespace utility
 {
+#if defined(ENABLE_PERSISTENT_BUFFER_GUARD_CHECK) || defined(_DEBUG)
+    const char Buffer::s_guard_sequence_str[49] = "XYZXYZXYZXYZXYZXYZXYZXYZXYZXYZXYZXYZXYZXYZXYZXYZ";
+
+    void Buffer::check_buffer_guards()
+    {
+        if (m_size < m_reserve) {
+            constexpr const size_t guard_sequence_str_len = std::size(s_guard_sequence_str) - 1;
+
+            uint8_t * buf_ptr = m_buf_ptr.get();
+
+            {
+                const size_t guard_size = m_offset;
+
+                const size_t num_whole_chunks = guard_size / guard_sequence_str_len;
+                const size_t chunks_remainder = guard_size % guard_sequence_str_len;
+
+                for (size_t i = 0; i < num_whole_chunks; i++) {
+                    if (VERIFY_FALSE(memcmp(&buf_ptr[i * guard_sequence_str_len], s_guard_sequence_str, guard_sequence_str_len))) {
+                        goto _error;
+                    }
+                }
+                if (chunks_remainder) {
+                    if (memcmp(&buf_ptr[num_whole_chunks * guard_sequence_str_len], s_guard_sequence_str, chunks_remainder)) {
+                        goto _error;
+                    }
+                }
+            }
+
+            {
+                const size_t offset = m_offset + m_size;
+                const size_t guard_size = m_reserve - offset;
+
+                const size_t num_whole_chunks = guard_size / guard_sequence_str_len;
+                const size_t chunks_remainder = guard_size % guard_sequence_str_len;
+
+                for (size_t i = 0; i < num_whole_chunks; i++) {
+                    if (VERIFY_FALSE(memcmp(&buf_ptr[offset + i * guard_sequence_str_len], s_guard_sequence_str, guard_sequence_str_len))) {
+                        goto _error;
+                    }
+                }
+                if (chunks_remainder) {
+                    if (memcmp(&buf_ptr[offset + num_whole_chunks * guard_sequence_str_len], s_guard_sequence_str, chunks_remainder)) {
+                        goto _error;
+                    }
+                }
+            }
+
+            return;
+
+        _error:;
+            throw std::out_of_range(
+                (boost::format(
+                    BOOST_PP_CAT(__FUNCTION__, ": out of buffer write: reserve=%u size=%u buffer=%p")) %
+                        m_reserve % m_size % buf_ptr).str());
+        }
+    }
+
+    void Buffer::_fill_buffer_guards()
+    {
+        if (m_size < m_reserve) {
+            constexpr const size_t guard_sequence_str_len = std::size(s_guard_sequence_str) - 1;
+
+            uint8_t * buf_ptr = m_buf_ptr.get();
+
+            {
+                const size_t guard_size = m_offset;
+
+                const size_t num_whole_chunks = guard_size / guard_sequence_str_len;
+                const size_t chunks_remainder = guard_size % guard_sequence_str_len;
+
+                for (size_t i = 0; i < num_whole_chunks; i++) {
+                    memcpy(&buf_ptr[i * guard_sequence_str_len], s_guard_sequence_str, guard_sequence_str_len);
+                }
+                if (chunks_remainder) {
+                    memcpy(&buf_ptr[num_whole_chunks * guard_sequence_str_len], s_guard_sequence_str, chunks_remainder);
+                }
+            }
+
+            {
+                const size_t offset = m_offset + m_size;
+                const size_t guard_size = m_reserve - offset;
+
+                const size_t num_whole_chunks = guard_size / guard_sequence_str_len;
+                const size_t chunks_remainder = guard_size % guard_sequence_str_len;
+
+                for (size_t i = 0; i < num_whole_chunks; i++) {
+                    memcpy(&buf_ptr[offset + i * guard_sequence_str_len], s_guard_sequence_str, guard_sequence_str_len);
+                }
+                if (chunks_remainder) {
+                    memcpy(&buf_ptr[offset + num_whole_chunks * guard_sequence_str_len], s_guard_sequence_str, chunks_remainder);
+                }
+            }
+        }
+    }
+#endif
+
     uint64_t get_file_size(const FileHandle & file_handle)
     {
         ASSERT_TRUE(file_handle.get());

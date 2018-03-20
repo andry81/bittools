@@ -1,6 +1,9 @@
 #pragma once
 
+#include <tacklelib.hpp>
+
 #include <utility/preprocessor.hpp>
+#include <utility/static_assert.hpp>
 
 #include <boost/preprocessor/cat.hpp>
 #include <boost/type_traits/integral_constant.hpp>
@@ -14,7 +17,7 @@
 #include <tuple>
 
 
-#define UTILITY_CONST_EXPR(exp) ::utility::const_expr<!!(exp)>::value
+#define UTILITY_CONST_EXPR(exp) ::utility::const_expr<(exp) ? true : false>::value
 
 // generates compilation error and shows real type name (and place of declaration in some cases) in an error message, useful for debugging boost::mpl recurrent types
 #define UTILITY_TYPE_LOOKUP_BY_ERROR(type_name) \
@@ -52,6 +55,59 @@ namespace utility
     {
         typedef T type;
     };
+
+    // std::size is supported from C++17
+    template <typename T, size_t N>
+    FORCE_INLINE constexpr size_t static_size(const T (&)[N]) noexcept
+    {
+        return N;
+    }
+
+    template <typename ...T>
+    FORCE_INLINE constexpr size_t static_size(const std::tuple<T...> &)
+    {
+        return std::tuple_size<std::tuple<T...> >::value;
+    }
+
+    template<typename Functor>
+    FORCE_INLINE void runtime_for_lt(Functor && function, size_t from, size_t to)
+    {
+        if (from < to) {
+            function(from);
+            runtime_for_lt(std::forward<Functor>(function), from + 1, to);
+        }
+    }
+
+    template <template <typename T_> class Functor, typename T>
+    FORCE_INLINE void runtime_foreach(T & container)
+    {
+        runtime_for_lt(Functor<T>{ container }, 0, static_size(container));
+    }
+
+    template <typename Functor, typename T>
+    FORCE_INLINE void runtime_foreach(T & container, Functor && functor)
+    {
+        runtime_for_lt(functor, 0, static_size(container));
+    }
+
+    // `constexpr for` implementation.
+    // Based on: https://stackoverflow.com/questions/42005229/why-for-loop-isnt-a-compile-time-expression-and-extended-constexpr-allows-for-l
+    //
+
+    template <typename T>
+    FORCE_INLINE void static_consume(std::initializer_list<T>) {}
+
+    template<typename Functor, std::size_t... S>
+    FORCE_INLINE constexpr void static_foreach_seq(Functor && function, std::index_sequence<S...>)
+    {
+        return static_consume({ (function(std::integral_constant<std::size_t, S>{}), 0)... });
+    }
+
+    template<std::size_t Size, typename Functor>
+    FORCE_INLINE constexpr void static_foreach(Functor && functor)
+    {
+        return static_foreach_seq(std::forward<Functor>(functor), std::make_index_sequence<Size>());
+    }
 
     // `is_callable` implementation.
     // Based on: https://stackoverflow.com/questions/15393938/find-out-if-a-c-object-is-callable
@@ -432,9 +488,13 @@ namespace utility
     struct function_traits_extractable<T, false>
     {
         typedef typename boost::remove_reference<T>::type unref_type;
-        static_assert(boost::is_function<unref_type>::value || boost::is_class<unref_type>::value, "type must be at least a function/class type");
+        STATIC_ASSERT_TRUE2(boost::is_function<unref_type>::value || boost::is_class<unref_type>::value,
+            boost::is_function<unref_type>::value, boost::is_class<unref_type>::value,
+            "type must be at least a function/class type");
         static_assert(is_callable<unref_type>::value, "type is not callable");
-        static_assert(boost::is_function<unref_type>::value || has_regular_parenthesis_operator<unref_type>::value, "type is not a function and does not contain regular operator()");
+        STATIC_ASSERT_TRUE2(boost::is_function<unref_type>::value || has_regular_parenthesis_operator<unref_type>::value,
+            boost::is_function<unref_type>::value, has_regular_parenthesis_operator<unref_type>::value,
+            "type is not a function and does not contain regular operator()");
 
         // to reduce excessive compiler errors output
         template <size_t i>

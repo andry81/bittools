@@ -204,7 +204,7 @@ int main(int argc, char **argv)
 {
     uint32_t crc_width;
     std::string crc_polynomial_str;
-    uint32_t table_columns;
+    uint32_t table_columns = 0;
     uint8_t column_separator = ',';
     bool reflect = false;
 
@@ -264,16 +264,24 @@ int main(int argc, char **argv)
 
     switch(crc_byte_width) {
     case 1:
-        table_columns = 16;
+        if (!table_columns) {
+            table_columns = 16;
+        }
         break;
     case 2:
-        table_columns = 8;
+        if (!table_columns) {
+            table_columns = 8;
+        }
         break;
     case 3:
-        table_columns = 6;
+        if (!table_columns) {
+            table_columns = 6;
+        }
         break;
     case 4:
-        table_columns = 4;
+        if (!table_columns) {
+            table_columns = 4;
+        }
         break;
 
     default:
