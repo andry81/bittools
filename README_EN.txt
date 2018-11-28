@@ -12,7 +12,7 @@
 -------------------------------------------------------------------------------
 Bittools console utilities for operations over bit stream files.
 
-The latest version is here: sf.net/p/contools
+The latest version is here: https://sf.net/p/contools
 
 WARNING:
   Use the SVN access to find out new functionality and bug fixes.
