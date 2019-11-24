@@ -1,5 +1,5 @@
 * README_EN.txt
-* 2017.10.03
+* 2019.11.24
 * bittools
 
 1. DESCRIPTION
@@ -27,11 +27,14 @@ WARNING:
 3. REPOSITORIES
 -------------------------------------------------------------------------------
 Primary:
-  * https://svn.code.sf.net/p/contools/bittools/trunk
+  * https://sf.net/p/contools/bittools/HEAD/tree/trunk/
+    https://svn.code.sf.net/p/contools/bittools/trunk
 First mirror:
-  * https://github.com/andry81/contools--bittools.git
+  * https://github.com/andry81/contools--bittools/tree/trunk
+    https://github.com/andry81/contools--bittools.git
 Second mirror:
-  * https://bitbucket.org/andry81/contools-bittools.git
+  * https://bitbucket.org/andry81/contools-bittools/src/trunk
+    https://bitbucket.org/andry81/contools-bittools.git
 
 -------------------------------------------------------------------------------
 4. AUTHOR EMAIL

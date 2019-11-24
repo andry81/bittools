@@ -10,6 +10,7 @@ _scripts/install_debug_x86.bat -text
 _scripts/install_release_x86.bat -text
 _scripts/pack_debug_x86.bat -text
 _scripts/pack_release_x86.bat -text
+/changelog.txt -text
 cmake/CPackMakeConfig.cmake -text
 cmake/Common.cmake -text
 cmake/ConfigureFile.cmake -text
