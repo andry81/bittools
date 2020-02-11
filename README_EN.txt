@@ -1,11 +1,11 @@
 * README_EN.txt
-* 2019.11.24
+* 2020.02.10
 * bittools
 
 1. DESCRIPTION
 2. DEPENDENCIES
 3. REPOSITORIES
-4. AUTHOR EMAIL
+4. AUTHOR
 
 -------------------------------------------------------------------------------
 1. DESCRIPTION
@@ -37,6 +37,6 @@ Second mirror:
     https://bitbucket.org/andry81/contools-bittools.git
 
 -------------------------------------------------------------------------------
-4. AUTHOR EMAIL
+4. AUTHOR
 -------------------------------------------------------------------------------
 andry at inbox dot ru
