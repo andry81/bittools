@@ -1,4 +1,7 @@
 2021.11.10:
+* new: `bitsync` project
+
+2021.11.10:
 * fixed: temporary build fixup
 
 2021.11.10:
