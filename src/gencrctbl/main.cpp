@@ -6,12 +6,12 @@
 #include <boost/variant.hpp>
 #include <boost/preprocessor/cat.hpp>
 
-#include "tackle/file_handle.hpp"
-#include "tackle/file_reader.hpp"
+#include "tacklelib/tackle/file_handle.hpp"
+#include "tacklelib/tackle/file_reader.hpp"
 
-#include "utility/platform.hpp"
-#include "utility/utility.hpp"
-#include "utility/assert.hpp"
+#include "tacklelib/utility/platform.hpp"
+#include "tacklelib/utility/utility.hpp"
+#include "tacklelib/utility/assert.hpp"
 
 #include <string>
 #include <iostream>

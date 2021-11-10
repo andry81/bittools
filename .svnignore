@@ -1,3 +1,2 @@
+.log
 _out
-environment_local.cmake
-CMakeLists.txt.user

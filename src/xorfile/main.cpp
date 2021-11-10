@@ -1,9 +1,9 @@
 #include "main.hpp"
 
-#include "utility/utility.hpp"
-#include "utility/assert.hpp"
+#include "tacklelib/utility/utility.hpp"
+#include "tacklelib/utility/assert.hpp"
 
-#include "tackle/file_reader.hpp"
+#include "tacklelib/tackle/file_reader.hpp"
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
