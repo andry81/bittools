@@ -7,6 +7,7 @@
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/format.hpp>
 
 #include <string>
 #include <iostream>
@@ -16,7 +17,6 @@
 #include <stdlib.h>
 
 namespace po = boost::program_options;
-using namespace utility;
 
 namespace boost {
     namespace fs = filesystem;
@@ -26,8 +26,8 @@ namespace
 {
     struct UserData
     {
-        std::vector<uint8_t> xor_value;
-        FileHandle file_out_handle;
+        std::vector<uint8_t>            xor_value;
+        tackle::file_handle<char>       file_out_handle;
     };
 
     void xor_buffer(uint8_t * buf, uint32_t size, const std::vector<uint8_t> & xor_value = { 0xff, 0xff, 0xff, 0xff })
@@ -91,17 +91,17 @@ namespace
 int main(int argc, char* argv[])
 {
     try {
-        std::string in_file;
-        std::string out_file;
+        tackle::path_string in_file;
+        tackle::path_string out_file;
         std::string num_xor_bits_str;
 
         po::options_description desc("Allowed options");
         desc.add_options()
             ("help,h", "print usage message")
             ("input,i",
-                po::value(&in_file), "input file and output file prefix if output file is not set explicitly")
+                po::value(&in_file.str()), "input file and output file prefix if output file is not set explicitly")
             ("output,o",
-                po::value(&out_file), "output file")
+                po::value(&out_file.str()), "output file")
             ("xor_bits,b",
                 po::value(&num_xor_bits_str), "number of first bits in the file to XOR with")
         ;
@@ -119,7 +119,7 @@ int main(int argc, char* argv[])
             return 0;
         }
 
-        if (!boost::fs::exists(in_file)) {
+        if (!utility::is_regular_file(in_file, false)) {
             fprintf(stderr, "error: input file is not found: \"%s\"\n", in_file.c_str());
             return 1;
         }
@@ -129,16 +129,16 @@ int main(int argc, char* argv[])
             return 2;
         }
 
-        FileHandle file_in_handle = open_file(in_file, "rb", _SH_DENYWR);
+        tackle::file_handle<char> file_in_handle = utility::open_file(in_file, "rb", utility::SharedAccess_DenyWrite);
 
-        boost::fs::path in_file_path = boost::fs::path(in_file);
+        tackle::path_string in_file_path = in_file;
 
         if (out_file.empty()) {
-            const std::string & out_parent_path = in_file_path.parent_path().string();
-            out_file = out_parent_path + (!out_parent_path.empty() ? "/" : "") + in_file_path.stem().string() + "_xor" + in_file_path.extension().string();
+            tackle::path_string out_parent_path = utility::get_parent_path(in_file_path);
+            out_file = out_parent_path + (!out_parent_path.empty() ? "/" : "") + utility::get_file_name_stem(in_file_path) + "_xor" + boost::fs::path{ in_file_path.str() }.extension().string();
         }
 
-        FileHandle file_out_handle = open_file(out_file, "wb", _SH_DENYWR);
+        tackle::file_handle<char> file_out_handle = utility::open_file(out_file, "wb", utility::SharedAccess_DenyWrite);
 
         typedef std::shared_ptr<uint8_t> ReadBufSharedPtr;
 
@@ -174,7 +174,7 @@ int main(int argc, char* argv[])
         UserData user_data;
         user_data.xor_value = xor_value;
         user_data.file_out_handle = file_out_handle;
-        tackle::FileReader(file_in_handle, _read_file_chunk).do_read(&user_data, {}, next_read_size);
+        tackle::file_reader<char>(file_in_handle, _read_file_chunk).do_read(&user_data, {}, next_read_size);
     }
     catch (std::exception & e) {
         std::cerr << e.what() << "\n";
