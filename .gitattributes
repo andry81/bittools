@@ -1,7 +1,9 @@
 * text=auto !eol
 .github/FUNDING.yml -text
+.github/workflows/bittools-gh-clone-stats.yml -text
 /.svnignore -text
 /CMakeLists.txt -text
+/README.md -text
 /README_EN.txt -text
 __init__/__init__.bat -text
 __init__/declare_builtins.bat -text
@@ -29,6 +31,7 @@ _config/cmake/config.system.vars.in -text
 _config/config.0.vars.in -text
 _config/config.system.vars.in -text
 /changelog.txt -text
+/license.txt -text
 src/bitsync/main.cpp -text
 src/bitsync/main.hpp -text
 src/gencrctbl/main.cpp -text

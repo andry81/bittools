@@ -1,5 +1,5 @@
 * README_EN.txt
-* 2021.11.10
+* 2021.11.11
 * bittools
 
 1. DESCRIPTION
@@ -12,7 +12,7 @@
 -------------------------------------------------------------------------------
 Utilities for operations over bit stream files.
 
-The latest version is here: https://sf.net/p/contools
+The latest version is here: https://sf.net/p/bittools
 
 WARNING:
   Use the SVN access to find out new functionality and bug fixes.
@@ -30,14 +30,14 @@ WARNING:
 3. REPOSITORIES
 -------------------------------------------------------------------------------
 Primary:
-  * https://sf.net/p/contools/bittools/HEAD/tree
-    https://svn.code.sf.net/p/contools/bittools
+  * https://sf.net/p/bittools/bittools/HEAD/tree
+    https://svn.code.sf.net/p/bittools/bittools
 First mirror:
-  * https://github.com/andry81/contools--bittools/branches
-    https://github.com/andry81/contools--bittools.git
+  * https://github.com/andry81/bittools/branches
+    https://github.com/andry81/bittools.git
 Second mirror:
-  * https://bitbucket.org/andry81/contools-bittools/branches
-    https://bitbucket.org/andry81/contools-bittools.git
+  * https://bitbucket.org/andry81/bittools/branches
+    https://bitbucket.org/andry81/bittools.git
 
 -------------------------------------------------------------------------------
 4. AUTHOR
