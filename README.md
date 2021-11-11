@@ -9,14 +9,23 @@ Utilities for operations over bit stream files.<br/><br/>
 ##
 
 <p align="center">
-  <a href="https://www.codefactor.io/repository/github/andry81/bittools"><img src="https://www.codefactor.io/repository/github/andry81/bittools/badge" valign="middle" alt="codefactor.io" /></a>
-• <a href="https://www.codacy.com/gh/andry81/bittools/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=andry81/bittools&amp;utm_campaign=Badge_Grade"><img src="https://app.codacy.com/project/badge/Grade/86364153e5c74f4382bfd36389344c91" valign="middle" alt="codacy.com" /></a>
+  <a href="https://www.codefactor.io/repository/github/andry81/bittools"><img src="https://img.shields.io/codefactor/grade/github/andry81/bittools?logo=codefactor" valign="middle" alt="codefactor.io|quality" /></a>
+  <!-- <a href="https://www.codefactor.io/repository/github/andry81/bittools"><img src="https://www.codefactor.io/repository/github/andry81/bittools/badge" valign="middle" alt="codefactor.io|quality" /></a> -->
+• <a href="https://www.codacy.com/gh/andry81/bittools/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=andry81/bittools&amp;utm_campaign=Badge_Grade"><img src="https://app.codacy.com/project/badge/Grade/b3ddc157edac46f9b710ae3b94f5ea36" valign="middle" alt="codacy.com|quality" /></a>
+<!-- -- >
+• <a href="https://codeclimate.com/github/andry81/bittools/maintainability"><img src="https://api.codeclimate.com/v1/badges/fcc4dde6b41737f524d3/maintainability?logo=codeclimate" valign="middle" alt="codeclimate.com|maintainability"></a>
+  <a href="https://codeclimate.com/github/andry81/bittools/issues"><img src="https://img.shields.io/codeclimate/issues/andry81/bittools?logo=codeclimate" valign="middle" alt="codeclimate.com|issues"></a>
+  <a href="https://codeclimate.com/github/andry81/bittools/trends/technical_debt"><img src="https://img.shields.io/codeclimate/tech-debt/andry81/bittools?logo=codeclimate" valign="middle" alt="codeclimate.com|debt"></a>
+<!-- -->
 </p>
 
 <p align="center">
-  <a href="#"><img src="https://img.shields.io/github/repo-size/andry81/bittools" valign="middle" alt="GitHub repo size in bytes" /></a>
-• <a href="#"><img src="https://img.shields.io/github/languages/code-size/andry81/bittools" valign="middle" alt="code size in bytes" /></a>
+  <a href="#"><img src="https://img.shields.io/github/repo-size/andry81/bittools?logo=github" valign="middle" alt="GitHub repo size in bytes" /></a>
+• <a href="#"><img src="https://img.shields.io/github/languages/code-size/andry81/bittools?logo=github" valign="middle" alt="code size in bytes" /></a>
 • <a href="https://github.com/XAMPPRocky/tokei"><img src="https://tokei.rs/b1/github/andry81/bittools?category=code" valign="middle" alt="lines of code by tokei.rs" /></a>
+<!-- -- >
+• <a href="https://github.com/XAMPPRocky/tokei"><img src="https://img.shields.io/tokei/lines/github/andry81/bittools?logo=tokei" valign="middle" alt="total lines by tokei.rs" /></a>
+<!-- -->
 </p>
 
 <p align="center">

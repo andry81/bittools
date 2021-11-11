@@ -1,4 +1,8 @@
 2021.11.11:
+* new: README.md: `codeclimate.com` link badges (disabled)
+* changed: README.md: badge icons and links update
+
+2021.11.11:
 * new: .github/workflows: `bittools-gh-clone-stats.yml` to generate `bittools` repo clone stats
 * new: `README.md` readme file
 * new: license file
