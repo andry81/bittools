@@ -1,4 +1,9 @@
 2021.11.16:
+* new: src/bitsync: `gen_index` to generate only particular baud combination
+* new: deploy/scripts: `search_syncseq.bat` script for automation
+* fixed: src/bitsync: multiple bug fix
+
+2021.11.16:
 * changed: src/bitsync: implementation rework
 
 2021.11.12:

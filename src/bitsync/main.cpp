@@ -33,6 +33,7 @@ namespace
         Mode_None           = 0,
         Mode_Gen            = 1,
         Mode_Sync           = 2,
+        Mode_Gen_Sync       = 3,    // TODO: generate into memory instead of into files and sync with each generated file
     };
 
     struct BasicData
@@ -42,13 +43,16 @@ namespace
 
     struct GenData : BasicData
     {
+        uint32_t                        gen_index;
+        uint32_t                        padded_stream_byte_size;
         std::vector<uint8_t> *          baud_alphabet_start_sequence;
         std::vector<uint8_t> *          baud_alphabet_end_sequence;
         uint32_t                        bits_per_baud;
         uint32_t                        baud_mask;
         uint32_t                        baud_capacity;
-        uint32_t                        last_bit_offset;
+        uint32_t                        shifted_bit_offset;
         tackle::file_handle<char>       file_out_handle;
+        bool                            has_stream_byte_size;
     };
 
     struct SyncData : BasicData
@@ -67,23 +71,38 @@ namespace
         std::vector<uint32_t>   next_bit_offsets;
     };
 
-    void translate_buffer(GenData & data, uint8_t * buf, uint32_t size)
+    void translate_buffer(GenData & data, tackle::file_reader_state & state, uint8_t * buf, uint32_t size)
     {
-        utility::Buffer write_buf{ size };
+        if (data.has_stream_byte_size) {
+            state.break_ = true;
+        }
+
+        // Buffer size must be padded to 3 bytes reminder to be able to read and shift
+        // the last 8-bit block as 32-bit block.
+        //
+        const uint32_t padded_stream_byte_size = data.padded_stream_byte_size;
+
+        if (padded_stream_byte_size > size) {
+            *(uint32_t *)(buf + size - 1) &= (uint32_t(0x1) << (padded_stream_byte_size - size + data.shifted_bit_offset)) - 1; // zeroing padding bytes
+        }
+
+        utility::Buffer write_buf{ padded_stream_byte_size };
 
         uint8_t * buf_out = write_buf.get();
 
         uint32_t bit_offset = 0;
 
         const uint32_t num_wholes = (size * 8) / data.bits_per_baud;
-        const uint32_t reminder = (size * 8) % data.bits_per_baud;
+        //const uint32_t reminder = (size * 8) % data.bits_per_baud;
 
         for (uint32_t i = 0; i < num_wholes; i++)
         {
             const uint32_t byte_offset = bit_offset / 8;
-            const uint32_t remain_bit_offset = bit_offset % 8;
+            const uint32_t remain_bit_offset = (bit_offset % 8) + data.shifted_bit_offset;
 
-            const uint8_t baud_char = (buf[byte_offset] >> remain_bit_offset) & data.baud_mask;
+            uint32_t & buf32 = *(uint32_t *)(buf + byte_offset);
+
+            const uint8_t baud_char = uint8_t(buf32 >> remain_bit_offset) & data.baud_mask;
             uint8_t to_baud_char = baud_char;
 
             for (uint32_t i = 0; i < data.baud_capacity; i++) {
@@ -93,14 +112,12 @@ namespace
                 }
             }
 
-            const uint32_t remain_mask = (uint32_t(0x01) << remain_bit_offset) - 1;
+            uint32_t & buf32_out = *(uint32_t *)(buf_out + byte_offset);
 
-            buf_out[byte_offset] = (buf_out[byte_offset] & remain_mask) | (to_baud_char << remain_bit_offset);
+            buf32_out = (buf32_out & ~(uint32_t(data.baud_mask) << remain_bit_offset)) | (uint32_t(to_baud_char) << remain_bit_offset);
 
             bit_offset += data.bits_per_baud;
         }
-
-        data.last_bit_offset += num_wholes * data.bits_per_baud;
 
         const size_t write_size = fwrite(buf_out, 1, size, data.file_out_handle.get());
         const int file_write_err = ferror(data.file_out_handle.get());
@@ -110,7 +127,7 @@ namespace
         }
     }
 
-    void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,  uint8_t * buf, uint32_t size)
+    void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state, uint8_t * buf, uint32_t size)
     {
         // first time read size must be greater than 32 bits
         //
@@ -118,25 +135,27 @@ namespace
             return;
         }
 
+        // single read only
+        state.break_ = true;
+
         // Search synchro sequence in `write_buf` by sequential 32-bit blocks compare as shifted 64-bit blocks.
         // Formula for all comparisons (K) of N 32-bit blocks in a stream:
         //  If N-even => K = ((N + 1) * N / 2 - 1) * 32
         //  If N-odd  => K = ((N + 1) / 2 * N - 1) * 32
-        // Buffer size must be padded to a multiple of 8 bytes to be able to read and shift the last 64-bit block.
+        // Buffer size must be padded to a multiple of 4 bytes plus 4 bytes reminder to be able to read and shift
+        // the last 32-bit block as 64-bit block.
         //
-        const uint32_t padded_uint64_size = data.padded_stream_byte_size;
+        const uint32_t padded_uint32_size = (size + 3) & ~uint32_t(3);
+        const uint32_t padded_stream_byte_size = data.padded_stream_byte_size;
 
         uint32_t * buf32 = (uint32_t *)buf;
-        uint64_t * buf64 = (uint64_t *)buf;
-
-        if (padded_uint64_size > size) {
-            const uint32_t last_uint64_offset = (padded_uint64_size / 8) - 1;
-            buf64[last_uint64_offset] &= ((uint64_t(0x1) << (padded_uint64_size - size)) - 1); // zeroing padding bytes
-        }
-
-        const uint32_t padded_uint32_size = (size + 3) & ~uint32_t(3);
 
         const uint32_t num_uint32_blocks = padded_uint32_size / 4;
+
+        if (padded_stream_byte_size > size) {
+            const uint32_t last_uint32_offset = num_uint32_blocks - 1;
+            *(uint64_t *)(buf32 + last_uint32_offset) &= (uint64_t(0x1) << (padded_stream_byte_size - size)) - 1; // zeroing padding bytes
+        }
 
         std::vector<SyncSeqHits> sync_seq_hits;
 
@@ -298,7 +317,7 @@ namespace
 
             const size_t read_size = uint32_t(size);
 
-            translate_buffer(data, buf, read_size);
+            translate_buffer(data, state, buf, read_size);
         } break;
 
         case Mode_Sync:
@@ -315,7 +334,7 @@ namespace
 
 int main(int argc, char* argv[])
 {
-    int ret = 0;
+    int ret = 255;
 
     std::string mode_str;
     Mode mode = Mode_None;
@@ -324,6 +343,8 @@ int main(int argc, char* argv[])
     uint32_t stream_byte_size = 0;
     uint32_t syncseq_bit_size = 0;
     uint32_t syncseq_repeat = 0;
+
+    uint32_t gen_index = math::uint32_max;
 
     uint32_t syncseq_bytes = 0;
     std::string syncseq_bytes_str;
@@ -348,6 +369,8 @@ int main(int argc, char* argv[])
                 po::value(&syncseq_bytes_str), "synchro sequence bytes (must be not 0)")
             ("syncseq_repeat,r",
                 po::value(&syncseq_repeat), "synchro sequence minimal repeat quantity")
+            ("gen_index,n",
+                po::value(&gen_index), "generate output file only for the combination by index")
 
             ("in_file,i",
                 po::value(&in_file.str())->required(), "input file path")
@@ -394,7 +417,9 @@ int main(int argc, char* argv[])
             return 255;
         }
 
-        if (mode == Mode_Sync) {
+        switch (mode) {
+        case Mode_Sync:
+        {
             if (stream_byte_size <= 32) {
                 fprintf(stderr, "error: stream_byte_size must be greater than 32 bits\n");
                 return 255;
@@ -428,11 +453,12 @@ int main(int argc, char* argv[])
                 fprintf(stderr, "error: syncseq_repeat must be positive\n");
                 return 255;
             }
+        } break;
         }
 
         if (in_file.empty() || !utility::is_regular_file(in_file, false)) {
             fprintf(stderr, "error: input file is not found: \"%s\"\n", in_file.c_str());
-            return 256;
+            return 255;
         }
 
         if (out_file_dir.empty()) {
@@ -553,35 +579,60 @@ int main(int argc, char* argv[])
         switch (mode) {
         case Mode_Gen:
         {
+            // Buffer size must be padded to 3 bytes reminder to be able to read and shift
+            // the last 8-bit block as 32-bit block.
+            //
+            if (!stream_byte_size) {
+                stream_byte_size = utility::get_file_size(file_in_handle);
+            }
+            const uint32_t padded_stream_byte_size = stream_byte_size + 3;
+
             GenData gen_data;
 
             gen_data.mode = mode;
+            gen_data.gen_index = gen_index;
+            gen_data.padded_stream_byte_size = padded_stream_byte_size;
             gen_data.baud_alphabet_start_sequence = &baud_alphabet_start_sequence;
             gen_data.bits_per_baud = bits_per_baud;
             gen_data.baud_mask = baud_mask;
             gen_data.baud_capacity = baud_capacity;
 
-            for (uint32_t i = 1; i < num_baud_alphabet_sequences; i++) {
-                tackle::path_string out_file{ out_file_dir / utility::get_file_name_stem(in_file_path) + "." + utility::int_to_dec(i, 2) + boost::fs::path{ in_file_path.str() }.extension().string() };
+            gen_data.has_stream_byte_size = !!stream_byte_size;
 
-                gen_data.baud_alphabet_end_sequence = &baud_alphabet_sequences[i];
-                gen_data.last_bit_offset = 0;
-
-                gen_data.file_out_handle = utility::open_file(out_file, "wb", utility::SharedAccess_DenyWrite);
-
-                fseek(file_in_handle.get(), 0, SEEK_SET);
-                tackle::file_reader<char>(file_in_handle, _read_file_chunk).do_read(&gen_data, {}, 256);
-
-                fmt::print(
-                    "#{:d}: `{:s}`:\n", i, out_file.c_str());
-
-                for (uint32_t j = 0; j < baud_capacity; j++) {
-                    const uint32_t from_baud = baud_alphabet_start_sequence[j];
-                    const uint32_t to_baud = (*gen_data.baud_alphabet_end_sequence)[j];
-                    if (from_baud != to_baud) {
-                        fmt::print(
-                            "  {0:#{2}b} -> {1:#{2}b}\n", from_baud, to_baud, bits_per_baud);
+            // CAUTION:
+            //  We must additionally shift file on `bits_per_baud - 1` times!
+            //
+            for (uint32_t j = 0; j < bits_per_baud; j++) {
+                for (uint32_t i = 1; i < num_baud_alphabet_sequences; i++) {
+                    if (gen_index != math::uint32_max && gen_index + j != num_baud_alphabet_sequences * j + i) {
+                        continue;
                     }
+
+                    tackle::path_string out_file{ out_file_dir / utility::get_file_name_stem(in_file_path) + "." +
+                        utility::int_to_dec(j, 1) + "-" + utility::int_to_dec(i, 2) +
+                        boost::fs::path{ in_file_path.str() }.extension().string() };
+
+                    gen_data.baud_alphabet_end_sequence = &baud_alphabet_sequences[i];
+                    gen_data.shifted_bit_offset = j;
+
+                    gen_data.file_out_handle = utility::recreate_file(out_file, "wb", utility::SharedAccess_DenyWrite);
+
+                    fseek(file_in_handle.get(), 0, SEEK_SET);
+                    tackle::file_reader<char>(file_in_handle, _read_file_chunk).do_read(&gen_data, { stream_byte_size }, padded_stream_byte_size);
+
+                    fmt::print(
+                        "#{:d}-{:d}: `{:s}`:\n", j, i, out_file.c_str());
+
+                    for (uint32_t k = 0; k < baud_capacity; k++) {
+                        const uint32_t from_baud = baud_alphabet_start_sequence[k];
+                        const uint32_t to_baud = (*gen_data.baud_alphabet_end_sequence)[k];
+                        if (from_baud != to_baud) {
+                            fmt::print(
+                                "  {0:#{2}b} -> {1:#{2}b}\n", from_baud, to_baud, bits_per_baud);
+                        }
+                    }
+
+                    ret = 0;
                 }
             }
         } break;
@@ -591,9 +642,10 @@ int main(int argc, char* argv[])
             const uint32_t syncseq_capacity = (uint32_t(0x01) << syncseq_bit_size);
             const uint32_t syncseq_mask = syncseq_capacity - 1;
 
-            // Buffer size must be padded to a multiple of 8 bytes to be able to read and shift the last 64-bit block.
+            // Buffer size must be padded to a multiple of 4 bytes plus 4 bytes reminder to be able to read and shift
+            // the last 32-bit block as 64-bit block.
             //
-            const uint32_t padded_stream_byte_size = (stream_byte_size + 7) & ~uint32_t(7);
+            const uint32_t padded_stream_byte_size = ((stream_byte_size + 3) & ~uint32_t(3)) + 4;
 
             SyncData sync_data;
 
@@ -606,9 +658,10 @@ int main(int argc, char* argv[])
             sync_data.syncseq_bit_offset = math::uint32_max;
 
             fseek(file_in_handle.get(), 0, SEEK_SET);
-            tackle::file_reader<char>(file_in_handle, _read_file_chunk).do_read(&sync_data, {}, padded_stream_byte_size);
+            tackle::file_reader<char>(file_in_handle, _read_file_chunk).do_read(&sync_data, { stream_byte_size }, padded_stream_byte_size);
 
             if (sync_data.syncseq_bit_offset != math::uint32_max) {
+                ret = 0;
                 fmt::print(
                     "Synchro sequence offset: {:d}\n", sync_data.syncseq_bit_offset);
             }

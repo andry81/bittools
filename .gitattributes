@@ -31,6 +31,7 @@ _config/cmake/config.system.vars.in -text
 _config/config.0.vars.in -text
 _config/config.system.vars.in -text
 /changelog.txt -text
+deploy/scripts/search_syncseq.bat -text
 /license.txt -text
 src/bitsync/main.cpp -text
 src/bitsync/main.hpp -text
