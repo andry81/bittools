@@ -1,3 +1,6 @@
+2021.11.19:
+* changed: .github/workflows: added reference to the `github-clone-count-badge` repo
+
 2021.11.16:
 * new: src/bitsync: `gen_index` to generate only particular baud combination
 * new: deploy/scripts: `search_syncseq.bat` script for automation
