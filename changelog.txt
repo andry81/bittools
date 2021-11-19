@@ -1,4 +1,8 @@
 2021.11.19:
+* new: .github/workflows: `bittools-gh-view-stats.yml` to generate `bittools` repo view stats
+* new: README.md: github all/unique views badges
+
+2021.11.19:
 * fixed: *.bat: explicitly sort by name in `dir` command if the sort option is not defined to avoid sort by date as by default
 
 2021.11.19:
