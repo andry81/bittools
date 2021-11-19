@@ -29,7 +29,7 @@ call :CMD "%%~dp0bitsync.exe" sync "%%BITS_PER_BAUD%%" -s "%%STREAM_BYTE_SIZE%%"
 call :CMD "%%~dp0bitsync.exe" gen "%%BITS_PER_BAUD%%" -s "%%STREAM_BYTE_SIZE%%" "%%FILE_IN%%" . || exit /b 255
 
 set INDEX=1
-for /F "usebackq eol= tokens=* delims=" %%i in (`dir /A:-D /B "%FILE_DIR_IN%%FILE_NAME_IN%.*%FILE_EXT_IN%"`) do (
+for /F "usebackq eol= tokens=* delims=" %%i in (`dir /A:-D /B /O:N "%FILE_DIR_IN%%FILE_NAME_IN%.*%FILE_EXT_IN%"`) do (
   call :CMD "%%~dp0bitsync.exe" sync "%%BITS_PER_BAUD%%" -s "%%STREAM_BYTE_SIZE%%" -q "%%SYNCSEQ_BIT_SIZE%%" -r "%%SYNCSEQ_REPEAT%%" -k "%%SYNCSEQ_BYTES%%" "%%i" . ^
   && call :CMD "%%~dp0bitsync.exe" gen "%%BITS_PER_BAUD%%" -n %%INDEX%% "%%FILE_IN%%" .
   set /A INDEX+=1
