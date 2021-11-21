@@ -1,7 +1,7 @@
 * text=auto !eol
 .github/FUNDING.yml -text
-.github/workflows/bittools-gh-clone-stats.yml -text
-.github/workflows/bittools-gh-view-stats.yml -text
+.github/workflows/accum-gh-clone-stats.yml -text
+.github/workflows/accum-gh-view-stats.yml -text
 /.svnignore -text
 /CMakeLists.txt -text
 /README.md -text
