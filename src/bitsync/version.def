@@ -1,0 +1,5 @@
+autogen definitions version;
+
+AppName = "bitsync";
+
+AppModuleName = "bitsync";

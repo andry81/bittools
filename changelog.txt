@@ -1,3 +1,6 @@
+2021.11.23:
+* changed: __init__, _config: BuildTools, CMakeLists.txt, src/bitsync: preparations to cut off the boost program_options dependency from bitsync
+
 2021.11.21:
 * new: .github/workflows: GitHub workflow switched to use GitHub composite action
 

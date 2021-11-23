@@ -1,2 +1,14 @@
 /.log
 /_out
+src/bitsync/help.txt
+src/bitsync/help_inl.hpp
+src/bitsync/version.hpp
+src/gencrctbl/help.txt
+src/gencrctbl/help_inl.hpp
+src/gencrctbl/version.hpp
+src/mirrorfile/help.txt
+src/mirrorfile/help_inl.hpp
+src/mirrorfile/version.hpp
+src/xorfile/help.txt
+src/xorfile/help_inl.hpp
+src/xorfile/version.hpp

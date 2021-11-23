@@ -3,6 +3,9 @@
 .github/workflows/accum-gh-clone-stats.yml -text
 .github/workflows/accum-gh-view-stats.yml -text
 /.svnignore -text
+BuildTools/TargetProject.PostBuildStep.bat -text
+BuildTools/TargetProject.PreBuildStep.bat -text
+BuildTools/__init__/__init__.bat -text
 /CMakeLists.txt -text
 /README.md -text
 /README_EN.txt -text
@@ -34,8 +37,12 @@ _config/config.system.vars.in -text
 /changelog.txt -text
 deploy/scripts/search_syncseq.bat -text
 /license.txt -text
+src/bitsync/help.def -text
+src/bitsync/help.tpl -text
 src/bitsync/main.cpp -text
 src/bitsync/main.hpp -text
+src/bitsync/version.def -text
+src/bitsync/version.tpl -text
 src/gencrctbl/main.cpp -text
 src/gencrctbl/main.hpp -text
 src/mirrorfile/main.cpp -text

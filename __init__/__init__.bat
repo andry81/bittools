@@ -15,6 +15,10 @@ if not defined PROJECT_LOG_ROOT                             call :CANONICAL_PATH
 if not defined BITTOOLS_PROJECT_INPUT_CONFIG_ROOT           call :CANONICAL_PATH BITTOOLS_PROJECT_INPUT_CONFIG_ROOT     "%%BITTOOLS_PROJECT_ROOT%%/_config"
 if not defined BITTOOLS_PROJECT_OUTPUT_CONFIG_ROOT          call :CANONICAL_PATH BITTOOLS_PROJECT_OUTPUT_CONFIG_ROOT    "%%PROJECT_OUTPUT_ROOT%%/config/bittools"
 
+rem retarget externals of an external project
+
+if not defined CONTOOLS_PROJECT_EXTERNALS_ROOT              call :CANONICAL_PATH CONTOOLS_PROJECT_EXTERNALS_ROOT        "%%BITTOOLS_PROJECT_EXTERNALS_ROOT%%"
+
 rem init immediate external projects
 
 if exist "%BITTOOLS_PROJECT_EXTERNALS_ROOT%/contools/__init__/__init__.bat" (
