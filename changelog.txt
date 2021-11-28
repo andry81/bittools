@@ -1,3 +1,6 @@
+2021.11.28:
+* changed: CMakeLists.txt: added `*.tpl` and `*.txt` files as part of `bitsync` sources
+
 2021.11.27:
 * changed: .github/workflows: added `deps_repo_owner` parameter to specifically address dependent repositories
 

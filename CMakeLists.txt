@@ -167,12 +167,15 @@ tkl_exclude_paths_from_path_list(. common_sources "${common_sources}" "/~" 0)
 # generate standalone sources groups
 foreach(target ${ALL_EXE_TARGETS})
   file(GLOB_RECURSE sources_${target} src/${target}/*.cpp src/${target}/*.h*)
+  file(GLOB_RECURSE resources_${target} src/${target}/*.tpl src/${target}/*.txt)
 
   # exclude tests sources
   tkl_exclude_paths_from_path_list(. sources_${target} "${sources_${target}}" "/tests/" 0)
+  tkl_exclude_paths_from_path_list(. resources_${target} "${resources_${target}}" "/tests/" 0)
 
   # exclude by pattern
   tkl_exclude_paths_from_path_list(. sources_${target} "${sources_${target}}" "/~" 0)
+  tkl_exclude_paths_from_path_list(. resources_${target} "${resources_${target}}" "/~" 0)
 endforeach()
 
 #file(GLOB_RECURSE headers_test src/tests/*.h*)
@@ -228,7 +231,7 @@ endif()
 # The data is just added to the executable, because in some IDEs (QtCreator) 
 # files are invisible when they are not explicitly part of the project.
 foreach(exe_target ${ALL_EXE_TARGETS})
-  add_executable(${exe_target} ${common_sources} ${sources_${exe_target}}) #${data_${exe_target}})
+  add_executable(${exe_target} ${common_sources} ${sources_${exe_target}} ${resources_${exe_target}})
 
   # This allows to include files relative to the root of the src directory with a <> pair
   target_include_directories(${exe_target}
@@ -323,7 +326,7 @@ foreach(exe_target ${ALL_EXE_TARGETS})
   tkl_initialize_executable_target_defaults(${exe_target} "${BITTOOLS_ADDRESS_MODEL}bit;console")
 
   tkl_source_groups_from_dir_list("Header Files (interface)" FILES ${CMAKE_CURRENT_LIST_DIR}/include *.h*)
-  tkl_source_groups_from_dir_list("Header Files" FILES ${CMAKE_CURRENT_LIST_DIR}/src *.h*)
+  tkl_source_groups_from_dir_list("Header Files" FILES ${CMAKE_CURRENT_LIST_DIR}/src "*.h*;*.tpl;*.txt")
   tkl_source_groups_from_dir_list("Source Files" FILES ${CMAKE_CURRENT_LIST_DIR}/src *.c*)
 endforeach()
 
