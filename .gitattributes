@@ -37,6 +37,8 @@ _config/config.system.vars.in -text
 /changelog.txt -text
 deploy/scripts/search_syncseq.bat -text
 /license.txt -text
+src/_common/common.hpp -text
+src/_common/std/tstring.hpp -text
 src/bitsync/help.def -text
 src/bitsync/help.tpl -text
 src/bitsync/main.cpp -text

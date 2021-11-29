@@ -236,6 +236,7 @@ foreach(exe_target ${ALL_EXE_TARGETS})
   # This allows to include files relative to the root of the src directory with a <> pair
   target_include_directories(${exe_target}
     PUBLIC
+      ${CMAKE_CURRENT_LIST_DIR}/src/_common
       ${CMAKE_CURRENT_LIST_DIR}/src
       ${CMAKE_CURRENT_LIST_DIR}/includes
       ${Boost_INCLUDE_DIRS}
@@ -263,6 +264,11 @@ foreach(exe_target ${ALL_EXE_TARGETS})
         ${Boost_INCLUDE_DIRS}
     )
   endif()
+
+  tkl_add_target_compile_definitions(${exe_target} *
+    PRIVATE
+      _UNICODE
+  )
 
   # we need the same Boost definitions here to maintain the link with the same libraries
   if (Boost_FOUND)
@@ -326,8 +332,9 @@ foreach(exe_target ${ALL_EXE_TARGETS})
   tkl_initialize_executable_target_defaults(${exe_target} "${BITTOOLS_ADDRESS_MODEL}bit;console")
 
   tkl_source_groups_from_dir_list("Header Files (interface)" FILES ${CMAKE_CURRENT_LIST_DIR}/include *.h*)
-  tkl_source_groups_from_dir_list("Header Files" FILES ${CMAKE_CURRENT_LIST_DIR}/src "*.h*;*.tpl;*.txt")
-  tkl_source_groups_from_dir_list("Source Files" FILES ${CMAKE_CURRENT_LIST_DIR}/src *.c*)
+  tkl_source_groups_from_dir_list("Header Files" FILES ${CMAKE_CURRENT_LIST_DIR}/src/${exe_target} *.h*)
+  tkl_source_groups_from_dir_list("Source Files" FILES ${CMAKE_CURRENT_LIST_DIR}/src/${exe_target} *.c*)
+  tkl_source_groups_from_dir_list("Resource Files" FILES ${CMAKE_CURRENT_LIST_DIR}/src/${exe_target} "*.tpl;*.txt")
 endforeach()
 
 ###############################################################################
