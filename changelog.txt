@@ -1,3 +1,8 @@
+2021.11.30:
+* new: src/bittools/help.tpl: `/gen-token` flag
+* changed: src/_common: common headers
+* changed: CMakeLists.txt: minor changes
+
 2021.11.29:
 * new: src/_common: common headers
 * changed: CMakeLists.txt: minor changes

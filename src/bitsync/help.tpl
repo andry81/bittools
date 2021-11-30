@@ -28,6 +28,12 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> <BitsPerBaud> <InputFi
         Synchro sequence minimal repeat quantity to treat it as found.
         `<value>` is an integer positive 32-bit number.
 
+      /gen-token
+        Generate output file only for the combination represented as a token:
+        `<bit-shift>-<combination-index>`, where:
+        bit-shift:          0-1
+        combination-index:  0-23
+
     <Mode>: gen | sync
       gen     - generate mode.
       sync    - synchronization mode.

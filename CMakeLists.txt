@@ -332,6 +332,7 @@ foreach(exe_target ${ALL_EXE_TARGETS})
   tkl_initialize_executable_target_defaults(${exe_target} "${BITTOOLS_ADDRESS_MODEL}bit;console")
 
   tkl_source_groups_from_dir_list("Header Files (interface)" FILES ${CMAKE_CURRENT_LIST_DIR}/include *.h*)
+  tkl_source_groups_from_dir_list("Header Files" FILES ${CMAKE_CURRENT_LIST_DIR}/src _common/*.h*)
   tkl_source_groups_from_dir_list("Header Files" FILES ${CMAKE_CURRENT_LIST_DIR}/src/${exe_target} *.h*)
   tkl_source_groups_from_dir_list("Source Files" FILES ${CMAKE_CURRENT_LIST_DIR}/src/${exe_target} *.c*)
   tkl_source_groups_from_dir_list("Resource Files" FILES ${CMAKE_CURRENT_LIST_DIR}/src/${exe_target} "*.tpl;*.txt")
