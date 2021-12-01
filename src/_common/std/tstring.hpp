@@ -12,6 +12,7 @@
 # define tstrcmp  wcscmp
 # define tstrncmp wcsncmp
 
+# define tstring  wstring
 # define to_tstring to_wstring
 #else
 # define tstrlen  strlen
@@ -21,6 +22,7 @@
 # define tstrcmp  strcmp
 # define tstrncmp strncmp
 
+# define tstring  string
 # define to_tstring to_string
 #endif
 

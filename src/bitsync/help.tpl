@@ -3,7 +3,7 @@
   Bit stream synchronization and operation utility.
 
 Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> <BitsPerBaud> <InputFile> [<OutputFileDir>]
-       [+ AppModuleName +].exe [/?] [<Flags>] [/gen_index <index>] [//] gen <BitsPerBaud> <InputFile> [<OutputFileDir>]
+       [+ AppModuleName +].exe [/?] [<Flags>] [/gen_token <token>] [//] gen <BitsPerBaud> <InputFile> [<OutputFileDir>]
   Description:
     /?
     This help.
@@ -18,17 +18,21 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> <BitsPerBaud> <InputFi
         than 32 bits).
 
       /syncseq-bit-size <value>
+      /q <value>
         Synchro sequence size in bits (must be less or equal to 32 bits).
 
       /syncseq-int32 <value>
+      /k <value>
         Synchro sequence value to search for (must be not 0).
         `<value>` is an integer positive 32-bit number.
 
       /syncseq-repeat <value>
+      /r <value>
         Synchro sequence minimal repeat quantity to treat it as found.
         `<value>` is an integer positive 32-bit number.
 
-      /gen-token
+      /gen-token <token>
+      /g <token>
         Generate output file only for the combination represented as a token:
         `<bit-shift>-<combination-index>`, where:
         bit-shift:          0-1

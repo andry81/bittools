@@ -10,12 +10,14 @@
 # define tputs      _putws
 # define tfputs     fputws
 # define tvsnprintf _vsnwprintf
+# define tsscanf    swscanf
 #else
 # define tfopen     fopen
 # define tfreopen   freopen
 # define tputs      puts
 # define tfputs     fputs
 # define tvsnprintf vsnprintf
+# define tsscanf    sscanf
 #endif
 
 #endif

@@ -1,3 +1,7 @@
+2021.12.01:
+* changed: src/bitsync: `boost::program_options` replaced by a custom parser
+* changed: src/bitsync: `gen_index` replaced by `gen_token` option
+
 2021.11.30:
 * new: src/bittools/help.tpl: `/gen-token` flag
 * changed: src/_common: common headers
