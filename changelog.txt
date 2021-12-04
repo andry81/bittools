@@ -1,3 +1,6 @@
+2021.12.05:
+* changed: .github/workflows: code cleanup
+
 2021.12.01:
 * changed: src/bitsync: `boost::program_options` replaced by a custom parser
 * changed: src/bitsync: `gen_index` replaced by `gen_token` option
