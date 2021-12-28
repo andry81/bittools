@@ -73,8 +73,11 @@ struct Options
     uint32_t                syncseq_repeat;
     uint32_t                bits_per_baud;
     std::tstring            gen_token;
+    uint32_t                gen_input_noise_bit_block_size; // 0-32767, 0 - don't generate
+    uint32_t                gen_input_noise_block_bit_prob; // 1-100
     tackle::path_tstring    input_file;
     tackle::path_tstring    output_file_dir;
+    tackle::path_tstring    output_file;
 };
 
 enum Mode
@@ -83,6 +86,7 @@ enum Mode
     Mode_Gen            = 1,
     Mode_Sync           = 2,
     Mode_Gen_Sync       = 3,    // TODO: generate into memory instead of into files and sync with each generated file
+    Mode_Pipe           = 4,
 };
 
 struct BasicData
@@ -97,22 +101,27 @@ struct GenData : BasicData
     uint32_t                        padded_stream_byte_size;
     std::vector<uint8_t> *          baud_alphabet_start_sequence;
     std::vector<uint8_t> *          baud_alphabet_end_sequence;
-    uint32_t                        bits_per_baud;
     uint32_t                        baud_mask;
     uint32_t                        baud_capacity;
+    uint64_t                        last_bit_offset;
     uint32_t                        shifted_bit_offset;
     tackle::file_handle<TCHAR>      file_out_handle;
-    bool                            has_stream_byte_size;
 };
 
 struct SyncData : BasicData
 {
     uint32_t                        padded_stream_byte_size;
-    uint32_t                        syncseq_bit_size;
-    uint32_t                        syncseq_int32;
+    uint64_t                        last_bit_offset;
     uint32_t                        syncseq_mask;
-    uint32_t                        syncseq_repeat;
     uint32_t                        syncseq_bit_offset;
+};
+
+struct PipeData : BasicData
+{
+    uint32_t                        padded_stream_byte_size;
+    uint64_t                        last_bit_offset;
+    uint64_t                        last_gen_noise_bits_block_index;
+    tackle::file_handle<TCHAR>      file_out_handle;
 };
 
 struct SyncSeqHits
@@ -122,5 +131,6 @@ struct SyncSeqHits
 };
 
 void translate_buffer(GenData & data, tackle::file_reader_state & state, uint8_t * buf, uint32_t size);
+void translate_buffer(PipeData & data, tackle::file_reader_state & state, uint8_t * buf, uint32_t size);
 void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state, uint8_t * buf, uint32_t size);
 void read_file_chunk(uint8_t * buf, uint64_t size, void * user_data, tackle::file_reader_state & state);

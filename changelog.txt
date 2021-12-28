@@ -1,3 +1,8 @@
+2021.12.28:
+* fixed: src/bitsync: multiple fixup
+* new: src/bitsync: `/gen-input-noise` option and pipe mode to generate noise for input file
+* refactor: src/bitsync: code refactor
+
 2021.12.18:
 * fixed: README.md: badges fixup
 
