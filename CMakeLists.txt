@@ -112,6 +112,10 @@ tkl_check_var(REQUIRED . Boost_ARCHITECTURE) # required for boost 1.66 and highe
 
 tkl_check_var(REQUIRED PATH TACKLELIB_ROOT)
 
+# fftw
+
+#tkl_check_var(REQUIRED PATH FFTW_ROOT)
+
 ###############################################################################
 ## projects description #######################################################
 ###############################################################################
@@ -152,6 +156,7 @@ file(GLOB_RECURSE all_sources
 )
 
 set(common_sources ${all_sources})
+set(common_private_headers ${all_private_headers})
 
 # exclude standalone sources
 foreach(target ${ALL_EXE_TARGETS})
@@ -169,13 +174,18 @@ foreach(target ${ALL_EXE_TARGETS})
   file(GLOB_RECURSE sources_${target} src/${target}/*.cpp src/${target}/*.h*)
   file(GLOB_RECURSE resources_${target} src/${target}/*.tpl src/${target}/*.txt)
 
+  # exclude target headers
+  tkl_exclude_paths_from_path_list(. common_private_headers "${common_private_headers}" "${sources_${target}}" 0)
+
   # exclude tests sources
   tkl_exclude_paths_from_path_list(. sources_${target} "${sources_${target}}" "/tests/" 0)
   tkl_exclude_paths_from_path_list(. resources_${target} "${resources_${target}}" "/tests/" 0)
+  tkl_exclude_paths_from_path_list(. common_private_headers "${common_private_headers}" "/tests/" 0)
 
   # exclude by pattern
   tkl_exclude_paths_from_path_list(. sources_${target} "${sources_${target}}" "/~" 0)
   tkl_exclude_paths_from_path_list(. resources_${target} "${resources_${target}}" "/~" 0)
+  tkl_exclude_paths_from_path_list(. common_private_headers "${common_private_headers}" "/~" 0)
 endforeach()
 
 #file(GLOB_RECURSE headers_test src/tests/*.h*)
@@ -224,6 +234,17 @@ if (TARGET tacklelib.testlib)
   list(APPEND COMMON_OPT_APP_TARGET_NAMES tacklelib.testlib)
 endif()
 
+# fftw
+
+tkl_add_target_subdirectory(FFTW_ROOT fftw _3dparty/math/fftw)
+
+if (TARGET fftw)
+  list(APPEND COMMON_OPT_APP_TARGET_NAMES fftw)
+
+  tkl_set_target_property(FFTW_ROOT * * "^fftw$$" *  . EXCLUDE_FROM_DEFAULT_BUILD ON) # all except output libraries
+  tkl_set_target_property(FFTW_ROOT * * "^fftw$$" *  . EXCLUDE_FROM_ALL ON) # all except output libraries
+endif()
+
 ###############################################################################
 ## target definitions #########################################################
 ###############################################################################
@@ -262,6 +283,15 @@ foreach(exe_target ${ALL_EXE_TARGETS})
     target_include_directories(${exe_target}
       PRIVATE
         ${Boost_INCLUDE_DIRS}
+    )
+  endif()
+
+  if (FFTW_ROOT)
+    target_include_directories(${exe_target}
+      PRIVATE
+        ${FFTW_ROOT}
+      PUBLIC
+        ${FFTW_ROOT}/api
     )
   endif()
 
@@ -312,6 +342,19 @@ foreach(exe_target ${ALL_EXE_TARGETS})
     target_link_libraries(${exe_target}
       PUBLIC
         tacklelib
+    )
+  endif()
+
+  if (TARGET fftw3) # double, PREC_SUFFIX=<empty>
+    target_link_libraries(${exe_target}
+      PUBLIC
+        fftw3
+    )
+  endif()
+  if (TARGET fftw3f) # float, PREC_SUFFIX=f
+    target_link_libraries(${exe_target}
+      PUBLIC
+        fftw3f
     )
   endif()
 
@@ -489,6 +532,10 @@ tkl_set_target_folder(CMAKE_CURRENT_LIST_DIR . * "tests" EXECUTABLE  . exe)
 tkl_set_target_folder(CMAKE_CURRENT_LIST_DIR . * .       "SHARED_LIBRARY;STATIC_LIBRARY" . lib)
 
 ## 3dparty
+
+# math
+
+tkl_set_target_folder(FFTW_ROOT * * . * . _3dparty/math/fftw)
 
 # utility
 

@@ -1,12 +1,22 @@
 #include "main.hpp"
 
+
+#define DEFAULT_SYNCSEQ_MAXIMAL_REPEAT_PERIOD   16
+
 const TCHAR * g_flags_to_parse_arr[] = {
     _T("/stream-byte-size"), _T("/s"),
     _T("/syncseq-bit-size"), _T("/q"),
     _T("/syncseq-int32"), _T("/k"),
-    _T("/syncseq-repeat"), _T("/r"),
+    _T("/syncseq-min-repeat"), _T("/r"),
+    _T("/syncseq-max-repeat"), _T("/rmax"),
+    _T("/stream-min-period"), _T("/spmin"),
+    _T("/stream-max-period"), _T("/spmax"),
     _T("/gen-token"), _T("/g"),
     _T("/gen-input-noise"), _T("/inn"),
+    _T("/tee-input"),
+    _T("/autocorr-mean-min"),
+    _T("/autocorr-mean-buf-max-size-mb"),
+    _T("/disable-calc-autocorr-mean"),
 };
 
 const TCHAR * g_empty_flags_arr[] = {
@@ -79,6 +89,30 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         else error = invalid_format_flag(start_arg);
         return 2;
     }
+    if (is_arg_equal_to(arg, _T("/stream-min-period")) || is_arg_equal_to(arg, _T("/spmin"))) {
+        arg_offset += 1;
+        if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
+            if (is_arg_in_filter(start_arg, include_filter_arr)) {
+                options.stream_min_period = _ttoi(arg);
+                return 1;
+            }
+            return 0;
+        }
+        else error = invalid_format_flag(start_arg);
+        return 2;
+    }
+    if (is_arg_equal_to(arg, _T("/stream-max-period")) || is_arg_equal_to(arg, _T("/spmax"))) {
+        arg_offset += 1;
+        if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
+            if (is_arg_in_filter(start_arg, include_filter_arr)) {
+                options.stream_max_period = _ttoi(arg);
+                return 1;
+            }
+            return 0;
+        }
+        else error = invalid_format_flag(start_arg);
+        return 2;
+    }
     if (is_arg_equal_to(arg, _T("/syncseq-bit-size")) || is_arg_equal_to(arg, _T("/q"))) {
         arg_offset += 1;
         if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
@@ -103,11 +137,23 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         else error = invalid_format_flag(start_arg);
         return 2;
     }
-    if (is_arg_equal_to(arg, _T("/syncseq-repeat")) || is_arg_equal_to(arg, _T("/r"))) {
+    if (is_arg_equal_to(arg, _T("/syncseq-min-repeat")) || is_arg_equal_to(arg, _T("/r"))) {
         arg_offset += 1;
         if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
             if (is_arg_in_filter(start_arg, include_filter_arr)) {
-                options.syncseq_repeat = _ttoi(arg);
+                options.syncseq_min_repeat = _ttoi(arg);
+                return 1;
+            }
+            return 0;
+        }
+        else error = invalid_format_flag(start_arg);
+        return 2;
+    }
+    if (is_arg_equal_to(arg, _T("/syncseq-max-repeat")) || is_arg_equal_to(arg, _T("/rmax"))) {
+        arg_offset += 1;
+        if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
+            if (is_arg_in_filter(start_arg, include_filter_arr)) {
+                options.syncseq_max_repeat = _ttoi(arg);
                 return 1;
             }
             return 0;
@@ -145,6 +191,49 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         }
         else error = invalid_format_flag(start_arg);
         return 2;
+    }
+    if (is_arg_equal_to(arg, _T("/tee-input"))) {
+        arg_offset += 1;
+        if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
+            if (is_arg_in_filter(start_arg, include_filter_arr)) {
+                options.tee_input_file = arg;
+                return 1;
+            }
+            return 0;
+        }
+        else error = invalid_format_flag(start_arg);
+        return 2;
+    }
+    if (is_arg_equal_to(arg, _T("/autocorr-mean-min"))) {
+        arg_offset += 1;
+        if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
+            if (is_arg_in_filter(start_arg, include_filter_arr)) {
+                options.autocorr_mean_min = utility::str_to_float(std::tstring{ arg });
+                return 1;
+            }
+            return 0;
+        }
+        else error = invalid_format_flag(start_arg);
+        return 2;
+    }
+    if (is_arg_equal_to(arg, _T("/autocorr-mean-buf-max-size-mb"))) {
+        arg_offset += 1;
+        if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
+            if (is_arg_in_filter(start_arg, include_filter_arr)) {
+                options.autocorr_mean_buf_max_size_mb = _ttoi(arg);
+                return 1;
+            }
+            return 0;
+        }
+        else error = invalid_format_flag(start_arg);
+        return 2;
+    }
+    if (is_arg_equal_to(arg, _T("/disable-calc-autocorr-mean"))) {
+        if (is_arg_in_filter(start_arg, include_filter_arr)) {
+            flags.disable_calc_autocorr_mean = true;
+            return 1;
+        }
+        return 0;
     }
 
     return -1;
@@ -299,10 +388,46 @@ int _tmain(int argc, const TCHAR * argv[])
                 }
 
                 switch (mode) {
+                case Mode_Gen:
                 case Mode_Sync:
+                case Mode_Gen_Sync:
                 {
-                    if (g_options.stream_byte_size <= 32) {
-                        _ftprintf(stderr, _T("error: stream_byte_size must be greater than 32 bits\n"));
+                    if (g_options.stream_byte_size && g_options.stream_byte_size <= 32) {
+                        _ftprintf(stderr, _T("error: stream_byte_size must be greater than 4 bytes\n"));
+                        return 255;
+                    }
+
+                    if (g_options.stream_byte_size >= math::uint32_max / 2) {
+                        _ftprintf(stderr, _T("error: stream_byte_size is too big: stream_byte_size=%u\n"),
+                            g_options.stream_byte_size);
+                        return 255;
+                    }
+                } break;
+                }
+
+                switch (mode) {
+                case Mode_Sync:
+                case Mode_Gen_Sync:
+                {
+                    if (g_options.stream_min_period != math::uint32_max && !g_options.stream_min_period) {
+                        _ftprintf(stderr, _T("error: stream_min_period must be positive\n"));
+                        return 255;
+                    }
+
+                    if (g_options.stream_min_period != math::uint32_max && g_options.stream_min_period >= g_options.stream_byte_size) {
+                        _ftprintf(stderr, _T("error: stream_min_period must be less than stream_byte_size: stream_min_period=%u stream_byte_size=%u\n"),
+                            g_options.stream_min_period, g_options.stream_byte_size);
+                        return 255;
+                    }
+
+                    if (!g_options.stream_max_period) {
+                        _ftprintf(stderr, _T("error: stream_max_period must be positive\n"));
+                        return 255;
+                    }
+
+                    if (g_options.stream_min_period != math::uint32_max && g_options.stream_max_period < g_options.stream_min_period) {
+                        _ftprintf(stderr, _T("error: stream_min_period must be not greater than stream_max_period: stream_min_period=%u stream_max_period=%u\n"),
+                            g_options.stream_min_period, g_options.stream_max_period);
                         return 255;
                     }
 
@@ -316,8 +441,15 @@ int _tmain(int argc, const TCHAR * argv[])
                         return 255;
                     }
 
-                    if (g_options.syncseq_bit_size < g_options.bits_per_baud) {
-                        _ftprintf(stderr, _T("error: syncseq_bit_size must be greater or equal to bits_per_baud\n"));
+                    if (g_options.stream_min_period != math::uint32_max && g_options.syncseq_bit_size >= g_options.stream_min_period) {
+                        _ftprintf(stderr, _T("error: stream_min_period must be greater than syncseq_bit_size: syncseq_bit_size=%u stream_min_period=%u\n"),
+                            g_options.syncseq_bit_size, g_options.stream_min_period);
+                        return 255;
+                    }
+
+                    if (g_options.stream_max_period != math::uint32_max && g_options.syncseq_bit_size >= g_options.stream_max_period) {
+                        _ftprintf(stderr, _T("error: stream_max_period must be greater than syncseq_bit_size: syncseq_bit_size=%u stream_max_period=%u\n"),
+                            g_options.syncseq_bit_size, g_options.stream_max_period);
                         return 255;
                     }
 
@@ -326,11 +458,36 @@ int _tmain(int argc, const TCHAR * argv[])
                         return 255;
                     }
 
-                    if (!g_options.syncseq_repeat) {
-                        _ftprintf(stderr, _T("error: syncseq_repeat must be positive\n"));
+                    if (g_options.syncseq_min_repeat != math::uint32_max && !g_options.syncseq_min_repeat) {
+                        _ftprintf(stderr, _T("error: syncseq_min_repeat must be positive\n"));
                         return 255;
                     }
+
+                    if (g_options.syncseq_max_repeat != math::uint32_max && !g_options.syncseq_max_repeat) {
+                        _ftprintf(stderr, _T("error: syncseq_max_repeat must be positive\n"));
+                        return 255;
+                    }
+
+                    if (g_options.syncseq_max_repeat != math::uint32_max && g_options.syncseq_max_repeat < g_options.syncseq_min_repeat) {
+                        _ftprintf(stderr, _T("error: syncseq_min_repeat must be not greater than syncseq_max_repeat: syncseq_min_repeat=%u syncseq_max_repeat=%u\n"),
+                            g_options.syncseq_min_repeat, g_options.syncseq_max_repeat);
+                        return 255;
+                    }
+
+                    if (g_options.syncseq_max_repeat == math::uint32_max) {
+                        if (g_options.syncseq_min_repeat != math::uint32_max && g_options.syncseq_min_repeat > DEFAULT_SYNCSEQ_MAXIMAL_REPEAT_PERIOD) {
+                            g_options.syncseq_max_repeat = g_options.syncseq_min_repeat;
+                        }
+                        else {
+                            g_options.syncseq_max_repeat = DEFAULT_SYNCSEQ_MAXIMAL_REPEAT_PERIOD;
+                        }
+                    }
                 } break;
+                }
+
+                if (g_options.syncseq_bit_size < g_options.bits_per_baud || g_options.syncseq_bit_size < 2) {
+                    _ftprintf(stderr, _T("error: syncseq_bit_size must be greater or equal to bits_per_baud and be at least 2\n"));
+                    return 255;
                 }
 
                 if (g_options.gen_input_noise_bit_block_size && g_options.gen_input_noise_bit_block_size > 32767) {
@@ -343,9 +500,29 @@ int _tmain(int argc, const TCHAR * argv[])
                     return 255;
                 }
 
+                if (g_options.autocorr_mean_min < 0 || g_options.autocorr_mean_min > 1.0) {
+                    _ftprintf(stderr, _T("error: autocorr_mean_min must be in range [0; 1]: autocorr_mean_min=%f\n"), g_options.autocorr_mean_min);
+                    return 255;
+                }
+
+                if (!g_options.autocorr_mean_buf_max_size_mb) {
+                    _ftprintf(stderr, _T("error: autocorr_mean_buf_max_size_mb must be positive.\n"));
+                    return 255;
+                }
+
                 if (g_options.input_file.empty() || !utility::is_regular_file(g_options.input_file, false)) {
                     _ftprintf(stderr, _T("error: input file is not found: \"%s\"\n"), g_options.input_file.c_str());
                     return 255;
+                }
+
+                tackle::file_handle<TCHAR> tee_file_in_handle;
+
+                if (!g_options.tee_input_file.empty()) {
+                    tee_file_in_handle = utility::open_file(g_options.tee_input_file, _T("wb"), utility::SharedAccess_DenyWrite, 0, 0);
+                    if (!tee_file_in_handle.get()) {
+                        _ftprintf(stderr, _T("error: could not open output tee file for the input: \"%s\"\n"), g_options.tee_input_file.c_str());
+                        return 255;
+                    }
                 }
 
                 switch (mode) {
@@ -504,19 +681,20 @@ int _tmain(int argc, const TCHAR * argv[])
                     if (!g_options.stream_byte_size) {
                         g_options.stream_byte_size = uint32_t((std::min)(utility::get_file_size(file_in_handle), uint64_t(math::uint32_max)));
                     }
-                    const uint32_t padded_stream_byte_size = g_options.stream_byte_size + 3;
+                    const uint32_t padded_stream_byte_size = g_options.stream_byte_size != math::uint32_max ? g_options.stream_byte_size + 3 : math::uint32_max;
 
-                    GenData gen_data;
+                    GenData gen_data{
+                        BasicData{ &g_flags, &g_options, mode, tee_file_in_handle },
+                        &baud_alphabet_start_sequence,
+                        nullptr,
+                        baud_mask,
+                        baud_capacity,
+                        0,
+                        StreamParams{ padded_stream_byte_size, 0, 0 },
+                        NoiseParams{}
+                    };
 
-                    gen_data.flags_ptr = &g_flags;
-                    gen_data.options_ptr = &g_options;
-
-                    gen_data.mode = mode;
-
-                    gen_data.padded_stream_byte_size = padded_stream_byte_size;
-                    gen_data.baud_alphabet_start_sequence = &baud_alphabet_start_sequence;
-                    gen_data.baud_mask = baud_mask;
-                    gen_data.baud_capacity = baud_capacity;
+                    ReadFileChunkData read_file_chunk_data{ mode, &gen_data };
 
                     // CAUTION:
                     //  We must additionally shift file on `bits_per_baud - 1` times!
@@ -536,13 +714,13 @@ int _tmain(int argc, const TCHAR * argv[])
                                 boost::fs::path{ g_options.input_file.str() }.extension().tstring() };
 
                             gen_data.baud_alphabet_end_sequence = &baud_alphabet_sequences[i];
-                            gen_data.last_bit_offset = 0;
+                            gen_data.stream_params.last_bit_offset = 0;
                             gen_data.shifted_bit_offset = j;
 
                             gen_data.file_out_handle = utility::recreate_file(out_file, _T("wb"), utility::SharedAccess_DenyWrite);
 
                             fseek(file_in_handle.get(), 0, SEEK_SET);
-                            tackle::file_reader<TCHAR>(file_in_handle, read_file_chunk).do_read(&gen_data, { g_options.stream_byte_size }, padded_stream_byte_size);
+                            tackle::file_reader<TCHAR>(file_in_handle, read_file_chunk).do_read(&read_file_chunk_data, { g_options.stream_byte_size }, padded_stream_byte_size);
 
                             fmt::print(
                                 _T("#{:d}-{:d}: `{:s}`:\n"), j, i, out_file.c_str());
@@ -572,27 +750,34 @@ int _tmain(int argc, const TCHAR * argv[])
                     if (!g_options.stream_byte_size) {
                         g_options.stream_byte_size = uint32_t((std::min)(utility::get_file_size(file_in_handle), uint64_t(math::uint32_max)));
                     }
-                    const uint32_t padded_stream_byte_size = ((g_options.stream_byte_size + 3) & ~uint32_t(3)) + 4;
+                    const uint32_t padded_stream_byte_size = g_options.stream_byte_size != math::uint32_max ?
+                        ((g_options.stream_byte_size + 3) & ~uint32_t(3)) + 4 : math::uint32_max;
 
-                    SyncData sync_data;
+                    SyncData sync_data{
+                        BasicData{ &g_flags, &g_options, mode, tee_file_in_handle },
+                        syncseq_mask,
+                        math::uint32_max,
+                        StreamParams{ padded_stream_byte_size, 0, 0 },
+                        NoiseParams{},
+                        AutocorrParams{}
+                    };
 
-                    sync_data.flags_ptr = &g_flags;
-                    sync_data.options_ptr = &g_options;
-
-                    sync_data.mode = mode;
-
-                    sync_data.padded_stream_byte_size = padded_stream_byte_size;
-                    sync_data.last_bit_offset = 0;
-                    sync_data.syncseq_mask = syncseq_mask;
-                    sync_data.syncseq_bit_offset = math::uint32_max;
+                    ReadFileChunkData read_file_chunk_data{ mode, &sync_data };
 
                     fseek(file_in_handle.get(), 0, SEEK_SET); // just in case
-                    tackle::file_reader<TCHAR>(file_in_handle, read_file_chunk).do_read(&sync_data, { g_options.stream_byte_size }, padded_stream_byte_size);
+                    tackle::file_reader<TCHAR>(file_in_handle, read_file_chunk).do_read(&read_file_chunk_data, { g_options.stream_byte_size }, padded_stream_byte_size);
 
                     if (sync_data.syncseq_bit_offset != math::uint32_max) {
                         ret = 0;
                         fmt::print(
-                            "Synchro sequence offset: {:d}\n", sync_data.syncseq_bit_offset);
+                            "Synchro sequence offset: {:d}\n"   // CAUTION: can be greater than stream width/period because of noise or synchronous sequence change in the input data!
+                            "Stream width/period:     {:d}\n"
+                            "Autocorrelation value:   {:#06f}\n"
+                            "Autocorrelation mean:    {:#06f}\n",
+                            sync_data.syncseq_bit_offset,
+                            sync_data.stream_params.stream_width,
+                            sync_data.autocorr_params.value,
+                            sync_data.autocorr_params.mean);
                     }
                 } break;
 
@@ -604,23 +789,19 @@ int _tmain(int argc, const TCHAR * argv[])
                     if (!g_options.stream_byte_size) {
                         g_options.stream_byte_size = uint32_t((std::min)(utility::get_file_size(file_in_handle), uint64_t(math::uint32_max)));
                     }
-                    const uint32_t padded_stream_byte_size = g_options.stream_byte_size + 3;
+                    const uint32_t padded_stream_byte_size = g_options.stream_byte_size != math::uint32_max ? g_options.stream_byte_size + 3 : math::uint32_max;
 
-                    PipeData pipe_data;
+                    PipeData pipe_data{
+                        BasicData{ &g_flags, &g_options, mode, tee_file_in_handle },
+                        StreamParams{ padded_stream_byte_size, 0, 0 },
+                        NoiseParams{},
+                        utility::recreate_file(g_options.output_file, _T("wb"), utility::SharedAccess_DenyWrite)
+                    };
 
-                    pipe_data.flags_ptr = &g_flags;
-                    pipe_data.options_ptr = &g_options;
-
-                    pipe_data.mode = mode;
-
-                    pipe_data.padded_stream_byte_size = padded_stream_byte_size;
-                    pipe_data.last_bit_offset = 0;
-                    pipe_data.last_gen_noise_bits_block_index = 0;
-
-                    pipe_data.file_out_handle = utility::recreate_file(g_options.output_file, _T("wb"), utility::SharedAccess_DenyWrite);;
+                    ReadFileChunkData read_file_chunk_data{ mode, &pipe_data };
 
                     fseek(file_in_handle.get(), 0, SEEK_SET); // just in case
-                    tackle::file_reader<TCHAR>(file_in_handle, read_file_chunk).do_read(&pipe_data, { g_options.stream_byte_size }, padded_stream_byte_size);
+                    tackle::file_reader<TCHAR>(file_in_handle, read_file_chunk).do_read(&read_file_chunk_data, { g_options.stream_byte_size }, padded_stream_byte_size);
                 } break;
                 }
             }

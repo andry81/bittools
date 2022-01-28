@@ -38,6 +38,8 @@ deploy/scripts/search_syncseq.bat -text
 src/_common/common.hpp -text
 src/_common/std/tstdio.hpp -text
 src/_common/std/tstring.hpp -text
+src/bitsync/autocorrelation.cpp -text
+src/bitsync/autocorrelation.hpp -text
 src/bitsync/bitsync.cpp -text
 src/bitsync/bitsync.hpp -text
 src/bitsync/help.def -text

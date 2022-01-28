@@ -106,3 +106,8 @@ local BOOST_SCOPE_EXIT_CONFIG_USE_LAMBDAS=ON
 #
 #top Boost_DEBUG=ON
 
+# fftw
+
+top cache bool ENABLE_FLOAT=ON
+top cache bool BUILD_SHARED_LIBS=OFF
+top cache bool BUILD_TESTS=OFF

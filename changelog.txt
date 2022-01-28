@@ -1,3 +1,9 @@
+2022.01.28:
+* new: src/bitsync: rewriten sychro sequence offset detection together with the bit stream width/period detection through the autocorrelation mean values calculation with input noise resistance
+* new: src/bitsync: `/stream-min-period`, `/stream-max-period`, `/syncseq-min-repeat`, `/syncseq-max-repeat`, `/autocorr-mean-min`, `/autocorr-mean-buf-max-size-mb`, `/disable-calc-autocorr-mean` options and flags to control autocorrelation flow
+* new: src/bitsync: `/tee-input` option to output preprocessed input, for example, preprocessed with the noise
+* new: src/bitsync: added `fftw` library
+
 2021.12.28:
 * fixed: src/bitsync: multiple fixup
 * new: src/bitsync: `/gen-input-noise` option and pipe mode to generate noise for input file

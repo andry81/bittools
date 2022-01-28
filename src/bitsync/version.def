@@ -3,3 +3,8 @@ autogen definitions version;
 AppName = "bitsync";
 
 AppModuleName = "bitsync";
+
+AppMajorVer = 1;
+AppMinorVer = 1;
+AppRevision = 0;
+AppBuildNum = 2;

@@ -19,4 +19,6 @@
 #include "tacklelib/utility/math.hpp"
 #include "tacklelib/utility/locale.hpp"
 
+using uint_t = unsigned int;
+
 #endif
