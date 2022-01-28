@@ -24,13 +24,13 @@ set "SYNCSEQ_REPEAT=%~6"
 echo ^>%FILE_NAME_IN%.*%FILE_EXT_IN%
 echo.
 
-call :CMD "%%~dp0bitsync.exe" /s "%%STREAM_BYTE_SIZE%%" /q "%%SYNCSEQ_BIT_SIZE%%" /r "%%SYNCSEQ_REPEAT%%" /k "%%SYNCSEQ_INT32%%" sync "%%BITS_PER_BAUD%%" "%%FILE_IN%%" . && exit /b 0
+call :CMD "%%~dp0bitsync.exe" /disable-calc-autocorr-mean /s "%%STREAM_BYTE_SIZE%%" /q "%%SYNCSEQ_BIT_SIZE%%" /r "%%SYNCSEQ_REPEAT%%" /k "%%SYNCSEQ_INT32%%" sync "%%BITS_PER_BAUD%%" "%%FILE_IN%%" . && exit /b 0
 
 call :CMD "%%~dp0bitsync.exe" /s "%%STREAM_BYTE_SIZE%%" gen "%%BITS_PER_BAUD%%" "%%FILE_IN%%" . || exit /b 255
 
 for /F "usebackq eol= tokens=* delims=" %%i in (`dir /A:-D /B /O:N "%FILE_DIR_IN%%FILE_NAME_IN%.*%FILE_EXT_IN%"`) do (
   set "FILE_NAME=%%~ni"
-  call :CMD "%%~dp0bitsync.exe" /s "%%STREAM_BYTE_SIZE%%" /q "%%SYNCSEQ_BIT_SIZE%%" /r "%%SYNCSEQ_REPEAT%%" /k "%%SYNCSEQ_INT32%%" sync "%%BITS_PER_BAUD%%" "%%i" . ^
+  call :CMD "%%~dp0bitsync.exe" /disable-calc-autocorr-mean /s "%%STREAM_BYTE_SIZE%%" /q "%%SYNCSEQ_BIT_SIZE%%" /r "%%SYNCSEQ_REPEAT%%" /k "%%SYNCSEQ_INT32%%" sync "%%BITS_PER_BAUD%%" "%%i" . ^
   && call :CMD "%%~dp0bitsync.exe" /g "%%FILE_NAME:*.=%%" gen "%%BITS_PER_BAUD%%" "%%FILE_IN%%" .
 )
 

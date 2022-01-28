@@ -39,8 +39,8 @@ void calculate_autocorrelation(
     std::deque<SyncseqAutocorr> *           syncseq_autocorr_mean_deq_ptr);     // resulted synchro sequence offset and period variants sorted from highest autocorrelation mean (average) value
 
 void calculate_autocorrelation_false_positive_stats(
-    const std::vector<float> &              autocorr_values_arr,                // calculated autocorrelation values in range [1; +inf]
-    const std::deque<SyncseqAutocorr> *     autocorr_mean_deq_pre,              // calculated autocorrelation mean values in range [1; +inf], sorted from correlation mean maximum value to minimum
+    const std::vector<float> &              autocorr_values_arr,                // calculated autocorrelation values in range (0; 1]
+    const std::deque<SyncseqAutocorr> *     autocorr_mean_deq_pre,              // calculated autocorrelation mean values in range (0; 1], sorted from correlation mean maximum value to minimum
     const std::vector<uint32_t> &           true_positions_index_arr,           // true positions (indexes) in the stream
     size_t &                                true_num,                           // number of true positions
     size_t                                  stat_arrs_size,                     // sizes of all output statistic arrays
