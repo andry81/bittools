@@ -1,3 +1,9 @@
+2022.01.29:
+* fixed: src/bitsync: accident zeroed synchro sequence of 32-bit width
+* fixed: src/bitsync: deploy/scripts/search_syncseq.bat: script execution fixup
+* changed: src/bitsync: code cleanup
+* refactor: src/bitsync: code refactor
+
 2022.01.28:
 * new: src/bitsync: rewriten sychro sequence offset detection together with the bit stream width/period detection through the autocorrelation mean values calculation with input noise resistance
 * new: src/bitsync: `/stream-min-period`, `/stream-max-period`, `/syncseq-min-repeat`, `/syncseq-max-repeat`, `/autocorr-mean-min`, `/autocorr-mean-buf-max-size-mb`, `/disable-calc-autocorr-mean` options and flags to control autocorrelation flow

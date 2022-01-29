@@ -141,7 +141,6 @@ struct SyncData
 {
     BasicData                       basic_data;
 
-    uint32_t                        syncseq_mask;
     uint64_t                        syncseq_bit_offset; // CAUTION: can be greater than stream width/period because of noise or synchronous sequence change in the input data!
     StreamParams                    stream_params;
     NoiseParams                     noise_params;

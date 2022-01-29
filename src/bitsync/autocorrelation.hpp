@@ -21,11 +21,17 @@ struct SyncseqAutocorrStats
     bool            is_true;    // true position flag
 };
 
-size_t generate_autocorr_func_from_bitstream(uint32_t value, uint32_t value_bit_size, std::vector<uint32_t> & out_ref, size_t offset);
-uint64_t multiply_autocorr_funcs(const uint32_t * in0_ptr, const uint32_t * in1_ptr, size_t size);
-float autocorr_value(const uint32_t * in0_ptr, const uint32_t * in1_ptr, size_t size, uint64_t max_in0, uint64_t max_in1);
+void generate_autocorr_complement_func_from_bitset(
+    uint32_t value, uint32_t value_bit_size, std::vector<uint32_t> & out_ref, size_t offset);
 
-void calculate_autocorrelation(
+uint64_t multiply_autocorr_funcs(
+    const uint32_t * in0_ptr, const uint32_t * in1_ptr, size_t size);
+
+float autocorr_value(
+    const uint32_t * in0_ptr, const uint32_t * in1_ptr, size_t size, uint64_t max_in0, uint64_t max_in1);
+
+void calculate_syncseq_autocorrelation(
+    uint8_t *                               stream_buf,                         // buffer must be padded to a multiple of 4 bytes plus 4 bytes reminder to be able to read and shift the last 32-bit block as 64-bit block
     uint64_t                                stream_bit_size,
     uint32_t                                stream_min_period,
     uint32_t                                stream_max_period,
@@ -33,14 +39,13 @@ void calculate_autocorrelation(
     uint32_t                                syncseq_bytes,
     uint32_t                                syncseq_min_repeat,                 // synchro sequence min/max repeat quantity to calculate autocorrelation mean values
     uint32_t                                syncseq_max_repeat,
-    uint64_t                                autocorr_mean_buf_max_size,
-    const std::vector<uint32_t> &           stream_bits_block_delta_arr,
     std::vector<float> &                    autocorr_values_arr,                // autocorrelation values per each stream bit within synchro sequence bit size
-    std::deque<SyncseqAutocorr> *           syncseq_autocorr_mean_deq_ptr);     // resulted synchro sequence offset and period variants sorted from highest autocorrelation mean (average) value
+    uint64_t                                autocorr_mean_buf_max_size,
+    std::deque<SyncseqAutocorr> *           autocorr_mean_deq_ptr);             // resulted synchro sequence offset and period variants sorted from highest autocorrelation mean (average) value
 
-void calculate_autocorrelation_false_positive_stats(
+void calculate_syncseq_autocorrelation_false_positive_stats(
     const std::vector<float> &              autocorr_values_arr,                // calculated autocorrelation values in range (0; 1]
-    const std::deque<SyncseqAutocorr> *     autocorr_mean_deq_pre,              // calculated autocorrelation mean values in range (0; 1], sorted from correlation mean maximum value to minimum
+    const std::deque<SyncseqAutocorr> *     autocorr_mean_deq_ptr,              // calculated autocorrelation mean values in range (0; 1], sorted from correlation mean maximum value to minimum
     const std::vector<uint32_t> &           true_positions_index_arr,           // true positions (indexes) in the stream
     size_t &                                true_num,                           // number of true positions
     size_t                                  stat_arrs_size,                     // sizes of all output statistic arrays

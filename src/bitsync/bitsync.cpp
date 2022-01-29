@@ -62,6 +62,8 @@ void Options::clear()
     *this = Options{};
 }
 
+// Buffer must be padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
+//
 inline void generate_noise(const BasicData & basic_data, StreamParams & stream_params, NoiseParams & noise_params, uint8_t * buf, uint32_t size)
 {
     uint8_t * buf_out = buf;
@@ -198,14 +200,15 @@ inline void generate_noise(const BasicData & basic_data, StreamParams & stream_p
     }
 }
 
+// Buffer be padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
+//
 void generate_stream(GenData & data, tackle::file_reader_state & state, uint8_t * buf, uint32_t size)
 {
     if (!!data.basic_data.options_ptr->stream_byte_size) {
         state.break_ = true;
     }
 
-    // Buffer size must be padded to 3 bytes remainder to be able to read and shift
-    // the last 8-bit block as 32-bit block.
+    // Buffer is already padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
     //
     const uint32_t padded_stream_byte_size = data.stream_params.padded_stream_byte_size;
 
@@ -284,14 +287,15 @@ void generate_stream(GenData & data, tackle::file_reader_state & state, uint8_t 
     }
 }
 
+// Buffer must be padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
+//
 inline void pipe_stream(PipeData & data, tackle::file_reader_state & state, uint8_t * buf, uint32_t size)
 {
     if (!!data.basic_data.options_ptr->stream_byte_size) {
         state.break_ = true;
     }
 
-    // Buffer size must be padded to 3 bytes remainder to be able to read and shift
-    // the last 8-bit block as 32-bit block.
+    // Buffer is already padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
     //
     const uint32_t padded_stream_byte_size = data.stream_params.padded_stream_byte_size;
 
@@ -331,6 +335,8 @@ inline void pipe_stream(PipeData & data, tackle::file_reader_state & state, uint
     }
 }
 
+// Buffer must be padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
+//
 void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state, uint8_t * buf, uint32_t size)
 {
     // first time read size must be greater than 32 bits
@@ -347,15 +353,9 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
     //  If N-even => K = ((N + 1) * N / 2 - 1) * 32
     //  If N-odd  => K = ((N + 1) / 2 * N - 1) * 32
 
-    // Buffer size must be padded to a multiple of 4 bytes plus 4 bytes remainder to be able to read and shift
-    // the last 32-bit block as 64-bit block.
+    // Buffer is already padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
     //
-    const uint32_t padded_uint32_size = (size + 3) & ~uint32_t(3);
     const uint32_t padded_stream_byte_size = data.stream_params.padded_stream_byte_size;
-
-    uint32_t * buf32 = (uint32_t *)buf;
-
-    const uint32_t num_uint32_blocks = padded_uint32_size / 4;
 
     if (padded_stream_byte_size > size) {
         for (uint32_t i = 0; i < padded_stream_byte_size - size; i++) {
@@ -383,55 +383,30 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
         }
     }
 
+    const uint64_t stream_bit_size = size * 8;
+
     const uint32_t syncseq_bit_size = data.basic_data.options_ptr->syncseq_bit_size;
     assert(syncseq_bit_size > 1);
 
-    //const uint32_t syncseq_half_bit_size = (syncseq_bit_size + 1) / 2; // math expected value of synchro sequence xor with random bit stream
     const uint32_t syncseq_int32 = data.basic_data.options_ptr->syncseq_int32;
     const uint32_t syncseq_min_repeat = data.basic_data.options_ptr->syncseq_min_repeat != math::uint32_max ? data.basic_data.options_ptr->syncseq_min_repeat : 0;
     const uint32_t syncseq_max_repeat = data.basic_data.options_ptr->syncseq_max_repeat;
-    const uint32_t syncseq_bytes = syncseq_int32 & data.syncseq_mask;
-    //const uint32_t syncseq_num_bits = math::count_bits(syncseq_bytes);
 
-    const uint64_t stream_bit_size = size * 8;
+    const uint32_t syncseq_mask = uint32_t(~(~uint64_t(0) << g_options.syncseq_bit_size));
+    const uint32_t syncseq_int32_masked = syncseq_int32 & syncseq_mask;
 
     bool break_ = false;
 
-    std::vector<uint32_t> stream_bits_block_delta_arr((size_t(stream_bit_size)));
-
-    uint64_t stream_bit_offset = 0;
-
-    // linear search
-    for (uint32_t from = 0; from < num_uint32_blocks; from++) {
-        const uint64_t from64 = *(uint64_t *)(buf32 + from);
-
-        for (uint32_t i = 0; i < 32; i++) {
-            const uint32_t from_shifted = uint32_t(from64 >> i) & data.syncseq_mask;
-
-            stream_bits_block_delta_arr[size_t(stream_bit_offset)] = from_shifted;
-
-            stream_bit_offset++;
-
-            if (stream_bit_offset >= stream_bit_size) {
-                break_ = true;
-                break;
-            }
-        }
-
-        if (break_) break;
-    }
-
-    // calculate autocorrelation values and autocorrelation mean values
+    // calculate synchro sequence autocorrelation values and autocorrelation mean values
 
     std::vector<float> autocorr_values_arr;
     std::deque<SyncseqAutocorr> autocorr_mean_deq;
 
-    calculate_autocorrelation(
-        stream_bit_size, g_options.stream_min_period, g_options.stream_max_period,
-        syncseq_bit_size, syncseq_bytes, syncseq_min_repeat, syncseq_max_repeat,
-        g_options.autocorr_mean_buf_max_size_mb * 1024 * 1024,
-        stream_bits_block_delta_arr, autocorr_values_arr,
-        !g_flags.disable_calc_autocorr_mean ? &autocorr_mean_deq : nullptr);
+    calculate_syncseq_autocorrelation(
+        buf, stream_bit_size, g_options.stream_min_period, g_options.stream_max_period,
+        syncseq_bit_size, syncseq_int32_masked, syncseq_min_repeat, syncseq_max_repeat,
+        autocorr_values_arr,
+        g_options.autocorr_mean_buf_max_size_mb * 1024 * 1024, !g_flags.disable_calc_autocorr_mean ? &autocorr_mean_deq : nullptr);
 
     if (!g_flags.disable_calc_autocorr_mean) {
         // sort from the correlation mean values from maximum to the minimum
@@ -552,7 +527,7 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
     std::vector<size_t> saved_true_in_false_max_index_arr;
     std::vector<SyncseqAutocorrStats> false_in_true_max_corr_mean_arr;
 
-    calculate_autocorrelation_false_positive_stats(
+    calculate_syncseq_autocorrelation_false_positive_stats(
         autocorr_values_arr, !g_flags.disable_calc_autocorr_mean ? &autocorr_mean_deq : nullptr,
         true_positions_index_arr,
         true_num, 30,

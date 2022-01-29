@@ -20,11 +20,15 @@
 //     -1 - maximal negative correlation value.
 //
 
-//  The general conditions and properties:
+//  The general approach, conditions and properties:
 //
 //  1. We must represent a bit stream together with a synchro sequence as a set of natural values greater or equal of 1 to build a function
-//     with natural values to multiply functions.
-//     In other words we have to generate more not bit values for comparison than the bit stream length instead of bit values from a bit stream.
+//     with natural values (no need to generate real values from a bit set) to multiply functions.
+//     In other words we have to generate more non bit values for comparison than the bit stream length instead of bit values from a bit stream.
+//
+//     Update: But because the generator function already tested for stable results and can be reduced, then we can leave the length of
+//             a function to generate the same size as input bit set length.
+//
 //     The same for the synchro sequence bit set.
 //     For this reason the generator function is exist.
 //
@@ -33,7 +37,7 @@
 //     Because both functions does not infinitely increase or decrease (with or without a limit), then we can compare without maximum and minimum
 //     normalization and can avoid a function rescale and resample.
 //
-//  3. The function multiplication to the exactly same function must gain the maximal correlation result from the range (0; 1], i.e. 1.
+//  3. The function multiplication to the exactly same function must gain the maximal correlation result from the range [0; 1], i.e. 1.
 //     To achieve that we multiply one function to another and divide by a possible maximum.
 //     For example, if absolute maximum one of the functions is greater, then we just divide by greater absolute maximum to normalize a correlation value to range <= 1.
 //
@@ -45,10 +49,10 @@
 //
 //     To avoid reduction of the sum, we always y-shift all functions on +1 independently to a maximum and minimum to shift all values into [1; +inf] range.
 //
-//  5. Because we don't need an inversed correlation range - `[-1; 0)` (an inversed synchro sequence does not need to be found), then we search solutions only in the
-//     positive numbers quantity - `[1; +inf]`.
+//  5. Because we don't need an inversed or maximal negative correlation range - `[-1; 0)` (an inversed synchro sequence does not need to be found),
+//     then we search solutions only in the positive numbers quantity - `[1; +inf]`.
 //
-//  6. Because multiplication of functions does gain a square factor correlation value, then we may take the square root to return back to linear correlation value.
+//  6. Because multiplication of functions does gain a square factor value, then we may take the square root to return back to linear value.
 //
 
 //  The general formula of 2 functions multiplication:
@@ -271,7 +275,7 @@
 
 //  Algorithm:
 //
-//  1. Generate autocorrelation functions fro a synchro sequence and for a bit stream with values in range [+1; 2^16-1] to fit a float type.
+//  1. Generate autocorrelation functions for a synchro sequence and for a bit stream with values in range [+1; 2^16-1] to fit a float type.
 //     Function generator must be reliable enough to generate functions with most unique multiplication output for any random input.
 //
 //  2. Multiply functions and divide the result by the maximum of absolute maximums of 2 functions.
@@ -313,14 +317,15 @@
 //     If all conditions are met, the result can be much stabler to the input noise than just a simple autocorrelation values set without the mean calculation.
 //
 
-// Autocorrelation complement function generator to make a function to multiply with the most equality within the noise
-// if 2 functions are equal without the noise and has a set of properties:
+// Autocorrelation complement function generator to make a function to multiply with most correlation equality within the noise when 2 functions are equal without the noise.
 //
-//  1. Generate set of values in range of [1; 2^16-1] from arbitrary bit set.
+// Has a set of properties:
+//
+//  1. Generate a set of values in range of [1; 2^16-1] from arbitrary bit set.
 //  2. To make a stable multiplication with minimal affect from input noise, where the true positions in a bit stream with equal or
 //     most equal comparison would have higher correlation values and all others would have lower correlation values.
 //
-size_t generate_autocorr_func_from_bitstream(uint32_t value, uint32_t value_bit_size, std::vector<uint32_t> & out_ref, size_t offset)
+extern inline void generate_autocorr_complement_func_from_bitset(uint32_t value, uint32_t value_bit_size, uint32_t * out_ptr, size_t offset)
 {
     static const uint32_t s_default_prime_numbers_arr[] = { // CAUTION: for 32-bit blocks
         1249,
@@ -360,15 +365,13 @@ size_t generate_autocorr_func_from_bitstream(uint32_t value, uint32_t value_bit_
     const size_t function_len = value_bit_size;
 
     for (size_t i = 0, j = function_len - 1; i < function_len; i++, j--) {
-        out_ref[offset] = (value & (uint32_t(0x01) << i)) ? s_default_prime_numbers_arr[i] : (i + 1) * 2;
-        //out_ref[offset] = (value & (uint32_t(0x01) << i)) ? 1000 + i : (i + 1) * 2;
+        out_ptr[offset] = (value & (uint32_t(0x01) << i)) ? s_default_prime_numbers_arr[i] : (i + 1) * 2;
+        //out_ptr[offset] = (value & (uint32_t(0x01) << i)) ? 1000 + i : (i + 1) * 2;
         offset++;
     }
-
-    return offset;
 }
 
-uint64_t multiply_autocorr_funcs(const uint32_t * in0_ptr, const uint32_t * in1_ptr, size_t size)
+extern inline uint64_t multiply_autocorr_funcs(const uint32_t * in0_ptr, const uint32_t * in1_ptr, size_t size)
 {
     uint64_t sum = 0;
 
@@ -381,16 +384,18 @@ uint64_t multiply_autocorr_funcs(const uint32_t * in0_ptr, const uint32_t * in1_
 
 // returns float instead of double because in0/in1/max_in0/max_in1 contains values in range [1; 2^16-1]
 //
-float autocorr_value(const uint32_t * in0_ptr, const uint32_t * in1_ptr, size_t size, uint64_t max_in0, uint64_t max_in1)
+extern inline float autocorr_value(const uint32_t * in0_ptr, const uint32_t * in1_ptr, size_t size, uint64_t max_in0, uint64_t max_in1)
 {
     const float autocorr = sqrtf(float(multiply_autocorr_funcs(in0_ptr, in1_ptr, size)) / (std::max)(max_in0, max_in1));
 
+    // zero padded values from padded arrays must not be passed here
     assert(0 < autocorr && 1.0f >= autocorr); // must be always in range (0; 1]
 
     return autocorr;
 }
 
-void calculate_autocorrelation(
+void calculate_syncseq_autocorrelation(
+    uint8_t *                           stream_buf,
     uint64_t                            stream_bit_size,
     uint32_t                            stream_min_period,
     uint32_t                            stream_max_period,
@@ -398,51 +403,79 @@ void calculate_autocorrelation(
     uint32_t                            syncseq_bytes,
     uint32_t                            syncseq_min_repeat,
     uint32_t                            syncseq_max_repeat,
-    uint64_t                            autocorr_mean_buf_max_size,
-    const std::vector<uint32_t> &       stream_bits_block_delta_arr,
     std::vector<float> &                autocorr_values_arr,
+    uint64_t                            autocorr_mean_buf_max_size,
     std::deque<SyncseqAutocorr> *       autocorr_mean_deq_ptr)
 {
     assert(syncseq_bit_size < stream_bit_size); // must be greater
 
-    const uint_t autocorr_func_gen_scale_factor = syncseq_bit_size;
+    // Buffer is already padded to a multiple of 4 bytes plus 4 bytes reminder to be able to read and shift the last 32-bit block as 64-bit block.
+    //
+    const uint64_t padded_stream_bit_size = (stream_bit_size + 31) & ~uint32_t(31);
+    const uint64_t num_stream_32bit_blocks = padded_stream_bit_size / 32;
+    uint32_t * stream_buf32 = (uint32_t *)stream_buf;
 
-    std::vector<uint32_t> stream_bits_block_autocorr_weight_arr((size_t(stream_bit_size * autocorr_func_gen_scale_factor)));
-    std::vector<uint32_t> syncseq_bits_block_autocorr_weight_arr((size_t(autocorr_func_gen_scale_factor)));
+    std::vector<uint32_t> syncseq_bits_block_autocorr_weight_arr((size_t(stream_bit_size)));
+    std::vector<uint32_t> stream_bits_block_autocorr_weight_arr((size_t(stream_bit_size * syncseq_bit_size)));
 
     std::vector<uint64_t> stream_autocorr_absmax_arr((size_t(stream_bit_size)));
     uint64_t syncseq_autocorr_absmax_arr = 1; // minimum
 
     autocorr_values_arr.resize((size_t(stream_bit_size)));
 
-    // generate autocorrelation function for the synchro sequence
-    generate_autocorr_func_from_bitstream(syncseq_bytes, syncseq_bit_size, syncseq_bits_block_autocorr_weight_arr, 0);
+    // generate autocorrelation complement function from the synchro sequence
+    generate_autocorr_complement_func_from_bitset(syncseq_bytes, syncseq_bit_size, &syncseq_bits_block_autocorr_weight_arr[0], 0);
 
-    // generate autocorrelation function for the bit stream
-    size_t offset = 0;
-    for (size_t i = 0; i < stream_bit_size; i++) {
-        offset = generate_autocorr_func_from_bitstream(stream_bits_block_delta_arr[i], syncseq_bit_size, stream_bits_block_autocorr_weight_arr, offset);
+    // generate autocorrelation complement function from the bit stream
+    const uint32_t syncseq_mask = uint32_t(~(~uint64_t(0) << syncseq_bit_size));
+
+    uint64_t stream_bit_offset = 0;
+    bool break_ = false;
+
+    // linear complexity
+    for (uint32_t from = 0; from < num_stream_32bit_blocks; from++) {
+        const uint64_t from64 = *(uint64_t *)(stream_buf32 + from);
+
+        for (uint32_t i = 0; i < 32; i++) {
+            const uint32_t from_shifted = uint32_t(from64 >> i) & syncseq_mask;
+
+            generate_autocorr_complement_func_from_bitset(from_shifted, syncseq_bit_size, &stream_bits_block_autocorr_weight_arr[size_t(stream_bit_offset * syncseq_bit_size)], 0);
+
+            stream_bit_offset++;
+
+            // avoid calculation from zero padded array values to avoid shift from range (0; 1] to range [0; 1]
+            if (stream_bit_offset >= stream_bit_size) {
+                break_ = true;
+                break;
+            }
+        }
+
+        if (break_) break;
     }
 
     // calculate absolute maximums for the synchro sequence autocorrelation function
     syncseq_autocorr_absmax_arr = multiply_autocorr_funcs(
         syncseq_bits_block_autocorr_weight_arr.data(),
         syncseq_bits_block_autocorr_weight_arr.data(),
-        autocorr_func_gen_scale_factor);
+        syncseq_bit_size);
 
     // calculate absolute maximums for the bit stream autocorrelation function
     for (size_t i = 0; i < stream_bit_size; i++) {
         stream_autocorr_absmax_arr[i] = multiply_autocorr_funcs(
-            &stream_bits_block_autocorr_weight_arr[autocorr_func_gen_scale_factor * i],
-            &stream_bits_block_autocorr_weight_arr[autocorr_func_gen_scale_factor * i],
-            autocorr_func_gen_scale_factor);
+            &stream_bits_block_autocorr_weight_arr[i * syncseq_bit_size],
+            &stream_bits_block_autocorr_weight_arr[i * syncseq_bit_size],
+            syncseq_bit_size);
     }
 
-    // Calculate autocorrelation values (first phase).
-    // Produces correlation values with certainty tolerance around 33% from the math expected value of number `one` bits per synchro sequence length,
+    // First phase:
+    //  Autocorrelation values calculation, creates a moderate but still instable algorithm certainty or false positive stability within input noise.
+    //
+    // Produces correlation values with noticeable certainty tolerance around 33% from the math expected value of number `one` bits per synchro sequence length,
     // where math expected value is equal to half of synchro sequence length.
     // For example, if synchro sequence has 20 bits length, then algorithm would output uncertain correlation values after a value greater than 33% of noised
-    // bits in 10 bits, i.e. greater than ~3 noised bits per 20 bit synchro sequence.
+    // bits of 10 bits, i.e. greater than ~3 noised bits per 20 bit synchro sequence.
+    //
+    // Complexity: O(N * M), where N - stream bit length, M - synchro sequence bit length
     //
 
     for (size_t i = 0; i < stream_bit_size; i++) {
@@ -450,17 +483,21 @@ void calculate_autocorrelation(
         autocorr_value_ref =
             autocorr_value(
                 syncseq_bits_block_autocorr_weight_arr.data(),
-                &stream_bits_block_autocorr_weight_arr[autocorr_func_gen_scale_factor * i],
-                autocorr_func_gen_scale_factor,
+                &stream_bits_block_autocorr_weight_arr[i * syncseq_bit_size],
+                syncseq_bit_size,
                 syncseq_autocorr_absmax_arr,
                 stream_autocorr_absmax_arr[i]);
     }
 
-    // Calculate autocorrelation mean (average) values (second phase, increases algorithm certainty or false positive stability within input noise).
-    // Produces correlation mean values with certainty tolerance around 66% from the math expected value of number `one` bits per synchro sequence length,
+    // Second phase:
+    //  Autocorrelation mean (average) values calculation, significantly increases algorithm certainty or false positive stability within input noise.
+    //
+    // Produces correlation mean values with noticeable certainty tolerance around 66% from the math expected value of number `one` bits per synchro sequence length,
     // where math expected value is equal to half of synchro sequence length.
     // For example, if synchro sequence has 20 bits length, then algorithm would output uncertain correlation mean values after a value greater than 66% of noised
-    // bits in 10 bits, i.e. greater ~6 noised bits per 20 bit synchro sequence.
+    // bits of 10 bits, i.e. greater ~6 noised bits per 20 bit synchro sequence.
+    //
+    // Complexity: O(N * N * N), where N - stream bit length
     //
 
     if (autocorr_mean_deq_ptr) {
@@ -553,7 +590,7 @@ void calculate_autocorrelation(
 
 // search algorithm false positive statistic calculation code to test algorithm stability within input noise
 //
-void calculate_autocorrelation_false_positive_stats(
+void calculate_syncseq_autocorrelation_false_positive_stats(
     const std::vector<float> &              autocorr_values_arr,
     const std::deque<SyncseqAutocorr> *     autocorr_mean_deq_ptr,
     const std::vector<uint32_t> &           true_positions_index_arr,

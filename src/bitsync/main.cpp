@@ -392,7 +392,7 @@ int _tmain(int argc, const TCHAR * argv[])
                 case Mode_Sync:
                 case Mode_Gen_Sync:
                 {
-                    if (g_options.stream_byte_size && g_options.stream_byte_size <= 32) {
+                    if (g_options.stream_byte_size && g_options.stream_byte_size <= 4) {
                         _ftprintf(stderr, _T("error: stream_byte_size must be greater than 4 bytes\n"));
                         return 255;
                     }
@@ -414,7 +414,7 @@ int _tmain(int argc, const TCHAR * argv[])
                         return 255;
                     }
 
-                    if (g_options.stream_min_period != math::uint32_max && g_options.stream_min_period >= g_options.stream_byte_size) {
+                    if (g_options.stream_min_period != math::uint32_max && g_options.stream_min_period >= g_options.stream_byte_size * 8) {
                         _ftprintf(stderr, _T("error: stream_min_period must be less than stream_byte_size: stream_min_period=%u stream_byte_size=%u\n"),
                             g_options.stream_min_period, g_options.stream_byte_size);
                         return 255;
@@ -482,12 +482,13 @@ int _tmain(int argc, const TCHAR * argv[])
                             g_options.syncseq_max_repeat = DEFAULT_SYNCSEQ_MAXIMAL_REPEAT_PERIOD;
                         }
                     }
-                } break;
-                }
 
-                if (g_options.syncseq_bit_size < g_options.bits_per_baud || g_options.syncseq_bit_size < 2) {
-                    _ftprintf(stderr, _T("error: syncseq_bit_size must be greater or equal to bits_per_baud and be at least 2\n"));
-                    return 255;
+                    if (g_options.syncseq_bit_size < g_options.bits_per_baud || g_options.syncseq_bit_size < 2) {
+                        _ftprintf(stderr, _T("error: syncseq_bit_size must be greater or equal to bits_per_baud and be at least 2: syncseq_bit_size=%u bits_per_baud=%u\n"),
+                            g_options.syncseq_bit_size, g_options.bits_per_baud);
+                        return 255;
+                    }
+                } break;
                 }
 
                 if (g_options.gen_input_noise_bit_block_size && g_options.gen_input_noise_bit_block_size > 32767) {
@@ -675,13 +676,14 @@ int _tmain(int argc, const TCHAR * argv[])
                 switch (mode) {
                 case Mode_Gen:
                 {
-                    // Buffer size must be padded to 3 bytes reminder to be able to read and shift
-                    // the last 8-bit block as 32-bit block.
-                    //
                     if (!g_options.stream_byte_size) {
                         g_options.stream_byte_size = uint32_t((std::min)(utility::get_file_size(file_in_handle), uint64_t(math::uint32_max)));
                     }
-                    const uint32_t padded_stream_byte_size = g_options.stream_byte_size != math::uint32_max ? g_options.stream_byte_size + 3 : math::uint32_max;
+
+                    // Buffer must be padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
+                    //
+                    const uint32_t padded_stream_byte_size = g_options.stream_byte_size != math::uint32_max ?
+                        g_options.stream_byte_size + 3 : math::uint32_max;
 
                     GenData gen_data{
                         BasicData{ &g_flags, &g_options, mode, tee_file_in_handle },
@@ -741,21 +743,18 @@ int _tmain(int argc, const TCHAR * argv[])
 
                 case Mode_Sync:
                 {
-                    const uint32_t syncseq_capacity = (uint32_t(0x01) << g_options.syncseq_bit_size);
-                    const uint32_t syncseq_mask = syncseq_capacity - 1;
-
-                    // Buffer size must be padded to a multiple of 4 bytes plus 4 bytes reminder to be able to read and shift
-                    // the last 32-bit block as 64-bit block.
-                    //
                     if (!g_options.stream_byte_size) {
                         g_options.stream_byte_size = uint32_t((std::min)(utility::get_file_size(file_in_handle), uint64_t(math::uint32_max)));
                     }
+
+                    // Buffer must be padded to a multiple of 4 bytes plus 4 bytes reminder to be able to read and shift the last 32-bit block as 64-bit block.
+                    // Buffer must be padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
+                    //
                     const uint32_t padded_stream_byte_size = g_options.stream_byte_size != math::uint32_max ?
                         ((g_options.stream_byte_size + 3) & ~uint32_t(3)) + 4 : math::uint32_max;
 
                     SyncData sync_data{
                         BasicData{ &g_flags, &g_options, mode, tee_file_in_handle },
-                        syncseq_mask,
                         math::uint32_max,
                         StreamParams{ padded_stream_byte_size, 0, 0 },
                         NoiseParams{},
@@ -783,13 +782,14 @@ int _tmain(int argc, const TCHAR * argv[])
 
                 case Mode_Pipe:
                 {
-                    // Buffer size must be padded to 3 bytes reminder to be able to read and shift
-                    // the last 8-bit block as 32-bit block.
-                    //
                     if (!g_options.stream_byte_size) {
                         g_options.stream_byte_size = uint32_t((std::min)(utility::get_file_size(file_in_handle), uint64_t(math::uint32_max)));
                     }
-                    const uint32_t padded_stream_byte_size = g_options.stream_byte_size != math::uint32_max ? g_options.stream_byte_size + 3 : math::uint32_max;
+
+                    // Buffer must be padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
+                    //
+                    const uint32_t padded_stream_byte_size = g_options.stream_byte_size != math::uint32_max ?
+                        g_options.stream_byte_size + 3 : math::uint32_max;
 
                     PipeData pipe_data{
                         BasicData{ &g_flags, &g_options, mode, tee_file_in_handle },
