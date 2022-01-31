@@ -112,12 +112,6 @@ struct StreamParams
     uint32_t                        stream_width;
 };
 
-struct AutocorrParams
-{
-    float value;
-    float mean;
-};
-
 struct NoiseParams
 {
     uint64_t                        last_gen_noise_bits_block_index;
@@ -144,7 +138,8 @@ struct SyncData
     uint64_t                        syncseq_bit_offset; // CAUTION: can be greater than stream width/period because of noise or synchronous sequence change in the input data!
     StreamParams                    stream_params;
     NoiseParams                     noise_params;
-    AutocorrParams                  autocorr_params;
+    AutocorrInParams                autocorr_in_params;
+    AutocorrInOutParams             autocorr_io_params;
 };
 
 struct PipeData

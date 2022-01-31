@@ -10,7 +10,8 @@
 #include <limits>
 #include <cmath>
 
-// The autocorrelation function algorithm for a synchro sequence in a bit stream.
+
+// The autocorrelation function algorithm for a synchro sequence in a bit stream as nondeterministic not differentiable signal.
 //
 
 //  Auto correlation function default range:
@@ -22,35 +23,45 @@
 
 //  The general approach, conditions and properties:
 //
-//  1. We must represent a bit stream together with a synchro sequence as a set of natural values greater or equal of 1 to build a function
+//  1. Because our bit stream sequence does represent a nondeterministic not differentiable signal as a set of discrete values with undefined range,
+//     then we must represent a bit stream together with a synchro sequence as a set of natural values greater or equal of 1 to build a function
 //     with natural values (no need to generate real values from a bit set) to multiply functions.
 //     In other words we have to generate more non bit values for comparison than the bit stream length instead of bit values from a bit stream.
 //
-//     Update: But because the generator function already tested for stable results and can be reduced, then we can leave the length of
-//             a function to generate the same size as input bit set length.
+//     But because the generator function already tested for stable results and can be reduced, then we can try to leave the length of a complement
+//     function by the same size as the entire bit stream length.
 //
-//     The same for the synchro sequence bit set.
-//     For this reason the generator function is exist.
+//     The reason why we didn't do that does lay in the complement function generator, which still can generate quite different complement functions
+//     even if an input bit set is shifted on 1 bit. And the difference is dependent on the index in a bit stream window, not the index from the bit
+//     stream beginning.
+//
+//     So we still have to allocate `N * M` instead of `N` memory for autocorrelation values storage, where N - length of a bit stream, M - length of
+//     a complement function.
+//
+//     For the synchro sequence bit set we can allocate only `M`.
+//     For this reason a complement function generator is exist as a standalone implementation.
 //
 //  2. Both functions basically will not infinitely increase or decrease, otherwise the different parts of the same function
 //     can be relatively equal if min/max of both is normalized to the same range, but is different if not normalized.
-//     Because both functions does not infinitely increase or decrease (with or without a limit), then we can compare without maximum and minimum
-//     normalization and can avoid a function rescale and resample.
+//     Because of that we can compare without maximum and minimum normalization and can avoid a function rescale or resample.
 //
 //  3. The function multiplication to the exactly same function must gain the maximal correlation result from the range [0; 1], i.e. 1.
 //     To achieve that we multiply one function to another and divide by a possible maximum.
-//     For example, if absolute maximum one of the functions is greater, then we just divide by greater absolute maximum to normalize a correlation value to range <= 1.
+//     For example, if absolute maximum one of the functions is greater, then we just divide by greater absolute maximum to normalize a
+//     correlation value to range <= 1.
 //
 //  4. We must avoid a function [-inf; 0] range for natural numbers and [-inf; 1] for real numbers because:
 //
 //       Multiplication to a negative value can reduce the sum instead of increase it, so we may gain a lesser value related to a maximum.
-//       In real numbers quantity a multiplication of a value from the range (0; 1) with a value from the range [1; +inf] may gain a lesser absolute value.
+//       In real numbers quantity a multiplication of a value from the range (0; 1) with a value from the range [1; +inf] may gain a lesser
+//       absolute value.
 //       Multiplication by 0 gets the lesser absolute value too.
 //
-//     To avoid reduction of the sum, we always y-shift all functions on +1 independently to a maximum and minimum to shift all values into [1; +inf] range.
+//     To avoid reduction of the sum, we always y-shift all functions on +1 independently to a maximum and minimum to shift all values into
+//     [1; +inf] range.
 //
-//  5. Because we don't need an inversed or maximal negative correlation range - `[-1; 0)` (an inversed synchro sequence does not need to be found),
-//     then we search solutions only in the positive numbers quantity - `[1; +inf]`.
+//  5. Because we don't need an inversed or maximal negative correlation range - `[-1; 0)` (an inversed synchro sequence does not need to be
+//     found), then we search solutions only in the positive numbers quantity - `[1; +inf]`.
 //
 //  6. Because multiplication of functions does gain a square factor value, then we may take the square root to return back to linear value.
 //
@@ -395,18 +406,24 @@ extern inline float autocorr_value(const uint32_t * in0_ptr, const uint32_t * in
 }
 
 void calculate_syncseq_autocorrelation(
+    const AutocorrInParams &            autocorr_in_params,
+    AutocorrInOutParams &               autocorr_io_params,
     uint8_t *                           stream_buf,
-    uint64_t                            stream_bit_size,
-    uint32_t                            stream_min_period,
-    uint32_t                            stream_max_period,
-    uint32_t                            syncseq_bit_size,
-    uint32_t                            syncseq_bytes,
-    uint32_t                            syncseq_min_repeat,
-    uint32_t                            syncseq_max_repeat,
     std::vector<float> &                autocorr_values_arr,
-    uint64_t                            autocorr_mean_buf_max_size,
-    std::deque<SyncseqAutocorr> *       autocorr_mean_deq_ptr)
+    std::vector<SyncseqAutocorr> *      autocorr_max_mean_arr_ptr)
 {
+    const auto stream_bit_size = autocorr_in_params.stream_bit_size;
+    const auto syncseq_bit_size = autocorr_in_params.syncseq_bit_size;
+
+    const auto syncseq_int32 = autocorr_io_params.syncseq_int32;
+    const uint32_t syncseq_mask = uint32_t(~(~uint64_t(0) << syncseq_bit_size));
+    const auto syncseq_bytes = syncseq_int32 & syncseq_mask;
+
+    // write back
+    autocorr_io_params.syncseq_int32 = syncseq_bytes;
+
+    assert(stream_bit_size);
+    assert(syncseq_bit_size);
     assert(syncseq_bit_size < stream_bit_size); // must be greater
 
     // Buffer is already padded to a multiple of 4 bytes plus 4 bytes reminder to be able to read and shift the last 32-bit block as 64-bit block.
@@ -427,7 +444,6 @@ void calculate_syncseq_autocorrelation(
     generate_autocorr_complement_func_from_bitset(syncseq_bytes, syncseq_bit_size, &syncseq_bits_block_autocorr_weight_arr[0], 0);
 
     // generate autocorrelation complement function from the bit stream
-    const uint32_t syncseq_mask = uint32_t(~(~uint64_t(0) << syncseq_bit_size));
 
     uint64_t stream_bit_offset = 0;
     bool break_ = false;
@@ -471,11 +487,17 @@ void calculate_syncseq_autocorrelation(
     //  Autocorrelation values calculation, creates a moderate but still instable algorithm certainty or false positive stability within input noise.
     //
     // Produces correlation values with noticeable certainty tolerance around 33% from the math expected value of number `one` bits per synchro sequence length,
-    // where math expected value is equal to half of synchro sequence length.
+    // where math expected value is equal to the half of synchro sequence length.
     // For example, if synchro sequence has 20 bits length, then algorithm would output uncertain correlation values after a value greater than 33% of noised
     // bits of 10 bits, i.e. greater than ~3 noised bits per 20 bit synchro sequence.
     //
-    // Complexity: O(N * M), where N - stream bit length, M - synchro sequence bit length
+    //  Note:
+    //      Even if the algorithm has a complete instability for not false positive output if over a tolerance, but nonetheless that does not mean it is
+    //      stable enough below the tolerance. To gain stability below the tolerance you must use the second phase algorithm.
+    //
+    // Memory complexity:   O(N)
+    // Time complexity:     O(N * M)
+    //                        , where N - stream bit length, M - synchro sequence bit length
     //
 
     for (size_t i = 0; i < stream_bit_size; i++) {
@@ -493,98 +515,155 @@ void calculate_syncseq_autocorrelation(
     //  Autocorrelation mean (average) values calculation, significantly increases algorithm certainty or false positive stability within input noise.
     //
     // Produces correlation mean values with noticeable certainty tolerance around 66% from the math expected value of number `one` bits per synchro sequence length,
-    // where math expected value is equal to half of synchro sequence length.
+    // where math expected value is equal to the half of synchro sequence length.
     // For example, if synchro sequence has 20 bits length, then algorithm would output uncertain correlation mean values after a value greater than 66% of noised
-    // bits of 10 bits, i.e. greater ~6 noised bits per 20 bit synchro sequence.
+    // bits of 10 bits, i.e. greater than ~6 noised bits per 20 bit synchro sequence.
     //
-    // Complexity: O(N * N * N), where N - stream bit length
+    // Memory complexity:   O(N)
+    // Time complexity:     o(N * N * N) or in approximation ~ (N ^ 1/3) * (N ^ 1/2) * N
+    //                        , where N - stream bit length
     //
 
-    if (autocorr_mean_deq_ptr) {
-        auto & autocorr_mean_deq = *autocorr_mean_deq_ptr;
+    if_break (autocorr_max_mean_arr_ptr) {
+        auto & autocorr_max_mean_arr = *autocorr_max_mean_arr_ptr;
 
-        const uint64_t stream_from_period = stream_min_period != math::uint32_max ? (std::max)(syncseq_bit_size + 1, stream_min_period) : syncseq_bit_size + 1;
-        const uint64_t stream_to_period = stream_max_period;
+        const auto syncseq_min_repeat = autocorr_in_params.period_min_repeat;
+        const auto syncseq_max_repeat = autocorr_in_params.period_max_repeat;
 
-        const uint64_t stream_from_period_bit_size = stream_bit_size - stream_from_period + 1; // excluding synchro sequence and 1 data bit
+        uint64_t stream_min_period =
+            (std::min)(
+                // If not defined, then minimal "from" period is at least 2 synchro sequence bit length, otherwise - not less than synchro sequence bit length + 1.
+                // But always not greater than a bit stream length.
+                uint64_t(autocorr_io_params.min_period ? (std::max)(syncseq_bit_size + 1, autocorr_io_params.min_period) : syncseq_bit_size * 2),
+                stream_bit_size - 1);
+        uint64_t stream_max_period =
+            (std::min)(
+                // If not defined, then minimal "to" period is at least 2 synchro sequence bit length, otherwise - not less than synchro sequence bit length + 1.
+                // But always not greater than a bit stream length.
+                uint64_t(autocorr_io_params.max_period != math::uint32_max ? (std::max)(syncseq_bit_size + 1, autocorr_io_params.min_period) : stream_bit_size * 2),
+                stream_bit_size - 1);
 
-        // CAUTION:
-        //
-        //  Can consume too much memory, because to find a stream period does need at least
-        //  `(stream_bit_size - syncseq_bit_size) * T * sizeof(SyncseqAutocorr)` bytes to store correlation mean values,
-        //  where - T - the real stream period!
-        //
-        const uint64_t autocorr_mean_deq_max_size = (std::min)(
-            autocorr_mean_buf_max_size / sizeof(autocorr_mean_deq[0]),
-            stream_from_period_bit_size * (stream_from_period_bit_size - 1) / 2); // all possible stream period variants but not maximum
+        assert(stream_max_period >= stream_min_period);
+        assert(syncseq_max_repeat >= syncseq_min_repeat);
 
-        //autocorr_mean_deq.reserve(size_t(autocorr_mean_deq_max_size));
+        // recalculated for min/max periods for a synchro sequence min repeat
+        const uint64_t stream_max_period_for_min_repeat = (stream_bit_size - 1) / (syncseq_min_repeat ? syncseq_min_repeat : 1);
 
-        for (uint64_t i = 0, period = stream_from_period, j = i + period; i < stream_from_period_bit_size - 1 && i < stream_to_period; i++, period = stream_from_period, j = i + period) {
-            if (syncseq_min_repeat >= (stream_bit_size - i + period - 1) / period) {
+        stream_min_period = (std::min)(stream_min_period, stream_max_period_for_min_repeat);
+        stream_max_period = (std::min)(stream_max_period, stream_max_period_for_min_repeat);
+
+        // write back
+        autocorr_io_params.min_period = uint32_t(stream_min_period);
+        autocorr_io_params.max_period = uint32_t(stream_max_period);
+
+        if (syncseq_bit_size >= stream_min_period || syncseq_bit_size >= stream_max_period) {
+            // the input conditions are not met, no room for calculation
+            break;
+        }
+
+        // calculate maximum storage size for autocorrelation mean values to cancel calculations
+        const uint64_t autocorr_max_mean_arr_max_size = autocorr_in_params.max_corr_mean_bytes / sizeof(autocorr_max_mean_arr[0]);
+
+        // x 10 to reserve space for at least 10 first results greater or equal than minimal correlation mean value
+        const uint64_t autocorr_reserve_mean_arr_max_size = (std::min)(
+            autocorr_max_mean_arr_max_size,
+            (stream_bit_size - 1) * (autocorr_in_params.min_corr_mean ? 10 : 1));
+
+        autocorr_max_mean_arr.reserve(size_t(autocorr_reserve_mean_arr_max_size));
+
+        struct AutocorrOffsetMean
+        {
+            float corr_mean;
+            uint64_t offset;
+            uint32_t num_corr;
+        };
+
+        std::vector<AutocorrOffsetMean> autocorr_offset_mean_arr; // for single period and different offsets
+
+        const uint64_t autocorr_offset_mean_arr_max_size = autocorr_in_params.max_corr_mean_bytes / sizeof(autocorr_offset_mean_arr[0]);
+        const uint64_t autocorr_reserve_offset_mean_arr_max_size = (std::min)(autocorr_offset_mean_arr_max_size, stream_bit_size - 1);
+
+        autocorr_offset_mean_arr.reserve(size_t(autocorr_reserve_offset_mean_arr_max_size));
+
+        uint32_t num_corr_means_calc = 0;
+        uint32_t num_corr_values_all_iterated = 0;
+
+        AutocorrOffsetMean max_autocorr_offset_mean;
+
+        bool break_ = false;
+
+        for (uint64_t period = stream_max_period; period >= stream_min_period; period--) {
+            autocorr_offset_mean_arr.clear();
+
+            for (uint64_t i = 0, j = i + period, repeat = 0; i < stream_bit_size - 1; i++, j = i + period, repeat = 0) {
+                if (syncseq_min_repeat >= (stream_bit_size - i + period - 1) / period) {
+                    break;
+                }
+
+                autocorr_offset_mean_arr.push_back(AutocorrOffsetMean{ autocorr_values_arr[size_t(i)], i, 1 });
+
+                AutocorrOffsetMean & autocorr_offset_mean = autocorr_offset_mean_arr.back();
+
+                num_corr_values_all_iterated++;
+
+                if (autocorr_offset_mean_arr.size() >= autocorr_offset_mean_arr_max_size) {
+                    // out of buffer max, cancel calculation
+                    break_ = true;
+                    num_corr_means_calc++;
+                    break;
+                }
+
+                while (j < stream_bit_size && repeat < syncseq_max_repeat) {
+                    autocorr_offset_mean.corr_mean += autocorr_values_arr[size_t(j)];
+                    autocorr_offset_mean.num_corr++;
+
+                    num_corr_values_all_iterated++;
+
+                    j += period;
+                    repeat++;
+                }
+
+                autocorr_offset_mean.corr_mean /= repeat + 1;
+                num_corr_means_calc++;
+            }
+
+            if (autocorr_in_params.min_corr_mean) {
+                for (size_t i = 0; i < autocorr_offset_mean_arr.size(); i++) {
+                    const AutocorrOffsetMean & autocorr_period_mean = autocorr_offset_mean_arr[i];
+
+                    if (autocorr_period_mean.corr_mean >= autocorr_in_params.min_corr_mean) {
+                        autocorr_max_mean_arr.push_back(SyncseqAutocorr{
+                            autocorr_period_mean.corr_mean, autocorr_period_mean.num_corr, autocorr_period_mean.offset, uint32_t(period)
+                        });
+                    }
+                }
+            }
+            else {
+                max_autocorr_offset_mean = AutocorrOffsetMean{};
+
+                for (size_t i = 0; i < autocorr_offset_mean_arr.size(); i++) {
+                    const AutocorrOffsetMean & autocorr_period_mean = autocorr_offset_mean_arr[i];
+
+                    if (max_autocorr_offset_mean.corr_mean < autocorr_period_mean.corr_mean) {
+                        max_autocorr_offset_mean = autocorr_period_mean;
+                    }
+                }
+
+                if (max_autocorr_offset_mean.corr_mean) {
+                    autocorr_max_mean_arr.push_back(SyncseqAutocorr{
+                        max_autocorr_offset_mean.corr_mean, max_autocorr_offset_mean.num_corr, max_autocorr_offset_mean.offset, uint32_t(period)
+                    });
+                }
+            }
+
+            if (break_ || autocorr_max_mean_arr.size() >= autocorr_max_mean_arr_max_size) {
+                // out of buffer max, cancel calculation
                 break;
             }
-
-            autocorr_mean_deq.push_back(SyncseqAutocorr{});
-
-            SyncseqAutocorr & autocorr_mean_ref = autocorr_mean_deq.back();
-
-            autocorr_mean_ref.corr_mean += autocorr_values_arr[size_t(i)];
-            autocorr_mean_ref.num_corr++;
-            autocorr_mean_ref.offset = i;
-
-            if (j >= stream_bit_size || syncseq_max_repeat < autocorr_mean_ref.num_corr) {
-                continue;
-            }
-
-            autocorr_mean_ref.period = uint32_t(period);
-
-            do {
-                autocorr_mean_ref.corr_mean += autocorr_values_arr[size_t(j)];
-                autocorr_mean_ref.num_corr++;
-                j += period;
-            } while (j < stream_bit_size && syncseq_max_repeat >= autocorr_mean_ref.num_corr);
-
-            // calculate mean (average) value
-            autocorr_mean_ref.corr_mean /= autocorr_mean_ref.num_corr;
-
-            for (period++, j = i + period; stream_to_period >= period; period++, j = i + period) {
-                if ((stream_bit_size - i + period - 1) / period < syncseq_min_repeat + 1) {
-                    break;
-                }
-
-                autocorr_mean_deq.push_back(SyncseqAutocorr{});
-
-                SyncseqAutocorr & syncseq_next_autocorr_mean_ref = autocorr_mean_deq.back();
-
-                syncseq_next_autocorr_mean_ref.corr_mean += autocorr_values_arr[size_t(i)];
-                syncseq_next_autocorr_mean_ref.num_corr++;
-                syncseq_next_autocorr_mean_ref.offset = i;
-
-                if (j >= stream_bit_size || syncseq_max_repeat < syncseq_next_autocorr_mean_ref.num_corr) {
-                    break;
-                }
-
-                syncseq_next_autocorr_mean_ref.corr_mean += autocorr_values_arr[size_t(j)];
-                syncseq_next_autocorr_mean_ref.num_corr++;
-                syncseq_next_autocorr_mean_ref.period = uint32_t(period);
-
-                if (syncseq_max_repeat < syncseq_next_autocorr_mean_ref.num_corr) {
-                    // calculate mean (average) value
-                    syncseq_next_autocorr_mean_ref.corr_mean /= syncseq_next_autocorr_mean_ref.num_corr;
-                    break;
-                }
-
-                do {
-                    syncseq_next_autocorr_mean_ref.corr_mean += autocorr_values_arr[size_t(j)];
-                    syncseq_next_autocorr_mean_ref.num_corr++;
-                    j += period;
-                } while (j < stream_bit_size && syncseq_max_repeat >= syncseq_next_autocorr_mean_ref.num_corr);
-
-                // calculate mean (average) value
-                syncseq_next_autocorr_mean_ref.corr_mean /= syncseq_next_autocorr_mean_ref.num_corr;
-            }
         }
+
+        autocorr_io_params.num_corr_values_iterated = num_corr_values_all_iterated;
+        autocorr_io_params.num_corr_means_calc = num_corr_means_calc;
     }
 }
 
@@ -592,7 +671,7 @@ void calculate_syncseq_autocorrelation(
 //
 void calculate_syncseq_autocorrelation_false_positive_stats(
     const std::vector<float> &              autocorr_values_arr,
-    const std::deque<SyncseqAutocorr> *     autocorr_mean_deq_ptr,
+    const std::vector<SyncseqAutocorr> *    autocorr_max_mean_arr_ptr,
     const std::vector<uint32_t> &           true_positions_index_arr,
     size_t &                                true_num,
     size_t                                  stat_arrs_size,
@@ -739,14 +818,14 @@ void calculate_syncseq_autocorrelation_false_positive_stats(
         if (!j) break;
     }
 
-    if (autocorr_mean_deq_ptr && false_in_true_max_corr_mean_arr_ptr) {
-        const auto & autocorr_mean_deq = *autocorr_mean_deq_ptr;
+    if (autocorr_max_mean_arr_ptr && false_in_true_max_corr_mean_arr_ptr) {
+        const auto & autocorr_max_mean_arr = *autocorr_max_mean_arr_ptr;
         auto & false_in_true_max_corr_mean_arr = *false_in_true_max_corr_mean_arr_ptr;
 
-        false_in_true_max_corr_mean_arr.resize((std::min)(stat_arrs_size, autocorr_mean_deq.size()));
+        false_in_true_max_corr_mean_arr.resize((std::min)(stat_arrs_size, autocorr_max_mean_arr.size()));
 
         for (size_t j = 0; j < false_in_true_max_corr_mean_arr.size(); j++) {
-            auto & autocorr_mean_ref = autocorr_mean_deq[j];
+            auto & autocorr_mean_ref = autocorr_max_mean_arr[j];
             auto & false_in_true_max_corr_mean_ref = false_in_true_max_corr_mean_arr[j];
 
             false_in_true_max_corr_mean_ref = SyncseqAutocorrStats{ autocorr_mean_ref, false };

@@ -1,3 +1,12 @@
+2022.01.31:
+* fixed: src/bitsync: rewrited autocorrelation mean values calculation algorithm to reduce memory consumption
+* fixed: src/bitsync: other minor fixup
+* new: src/bitsync: Implemented usage of `/autocorr-mean-buf-max-size` option to avoid out of memory in case of calculation autocorrelation means for too big bit streams. The autocorrelation mean values calculation algorithm will just quit early and so may calculate not certain enough or false positively instable values for the sake of reduced memory/time consumption. This option will have rare meaning for a memory consumption because the autocorrelation mean values calculation algorithm now has O(N) memory complexity, but still has o(N * N * N) or in approximation ~ (N ^ 1/3) * (N ^ 1/2) * N time complexity,  where N - length of a bit stream, when a big bit stream may significantly slow down the calculation. The only meaning is to cancel further calculation by a buffer size to save a time.
+* new: src/bitsync: print more statistic data together with the offset and period like min/max periods, period min/used/max repeat, min/used autocorrelation mean value, all autocorrelation mean values been calculated, all autocorrelation values been iterated, used/max memory for autocorrelation mean values and etc
+* changed: src/bitsync: deploy/scripts: scripts execution fixup
+* changed: src/bitsync: other minor improvements
+* refactor: src/bitsync: code refactor
+
 2022.01.29:
 * fixed: src/bitsync: accident zeroed synchro sequence of 32-bit width
 * fixed: src/bitsync: deploy/scripts/search_syncseq.bat: script execution fixup

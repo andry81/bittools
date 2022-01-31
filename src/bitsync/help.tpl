@@ -132,9 +132,13 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
         Can be used to output the noised input.
 
       /autocorr-mean-min <value>
-        Autocorrelation minimum mean value to treat it certain.
+        Autocorrelation minimum mean value to treat it as certain.
         Can filter out uncertain offset and period result if found maximum
         autocorrelation mean value is less.
+
+        If autocorrelation mean values algorithm is disabled then used as
+        minimum for an autocorrelation value.
+
         Must be in range [0; 1].
 
       /autocorr-mean-buf-max-size-mb <value>

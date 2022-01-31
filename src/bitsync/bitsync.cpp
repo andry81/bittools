@@ -42,18 +42,22 @@ void Flags::clear()
 
 Options::Options()
 {
+    // by default:
+    //  * all min values based on a synchro sequence bit length
+    //  * all max values based on a stream bit length
+    //
     stream_byte_size                = 0;
     stream_min_period               = math::uint32_max;
     stream_max_period               = math::uint32_max;
     syncseq_bit_size                = 0;
     syncseq_int32                   = 0;
-    syncseq_min_repeat              = math::uint32_max;  // by default max repeats based on the stream length
+    syncseq_min_repeat              = math::uint32_max;
     syncseq_max_repeat              = math::uint32_max;
     bits_per_baud                   = 0;
     gen_input_noise_bit_block_size  = 0;
     gen_input_noise_block_bit_prob  = 0;
-    autocorr_mean_min               = 0;
-    autocorr_mean_buf_max_size_mb   = 400; // 400 Mb is default
+    autocorr_mean_min = 0;
+    autocorr_mean_buf_max_size_mb = 400; // 400 Mb is default
 }
 
 
@@ -339,6 +343,9 @@ inline void pipe_stream(PipeData & data, tackle::file_reader_state & state, uint
 //
 void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state, uint8_t * buf, uint32_t size)
 {
+    // not found
+    data.syncseq_bit_offset = math::uint32_max;
+
     // first time read size must be greater than 32 bits
     //
     if (!state.read_index && 32 >= size) {
@@ -383,57 +390,75 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
         }
     }
 
-    const uint64_t stream_bit_size = size * 8;
-
-    const uint32_t syncseq_bit_size = data.basic_data.options_ptr->syncseq_bit_size;
-    assert(syncseq_bit_size > 1);
-
-    const uint32_t syncseq_int32 = data.basic_data.options_ptr->syncseq_int32;
-    const uint32_t syncseq_min_repeat = data.basic_data.options_ptr->syncseq_min_repeat != math::uint32_max ? data.basic_data.options_ptr->syncseq_min_repeat : 0;
-    const uint32_t syncseq_max_repeat = data.basic_data.options_ptr->syncseq_max_repeat;
-
-    const uint32_t syncseq_mask = uint32_t(~(~uint64_t(0) << g_options.syncseq_bit_size));
-    const uint32_t syncseq_int32_masked = syncseq_int32 & syncseq_mask;
-
-    bool break_ = false;
-
     // calculate synchro sequence autocorrelation values and autocorrelation mean values
 
     std::vector<float> autocorr_values_arr;
-    std::deque<SyncseqAutocorr> autocorr_mean_deq;
+    std::vector<SyncseqAutocorr> autocorr_max_mean_arr; // maximal mean per a period
 
     calculate_syncseq_autocorrelation(
-        buf, stream_bit_size, g_options.stream_min_period, g_options.stream_max_period,
-        syncseq_bit_size, syncseq_int32_masked, syncseq_min_repeat, syncseq_max_repeat,
+        data.autocorr_in_params, data.autocorr_io_params,
+        buf,
         autocorr_values_arr,
-        g_options.autocorr_mean_buf_max_size_mb * 1024 * 1024, !g_flags.disable_calc_autocorr_mean ? &autocorr_mean_deq : nullptr);
+        !g_flags.disable_calc_autocorr_mean ? &autocorr_max_mean_arr : nullptr);
 
     if (!g_flags.disable_calc_autocorr_mean) {
-        // sort from the correlation mean values from maximum to the minimum
-        std::sort(autocorr_mean_deq.begin(), autocorr_mean_deq.end(), [&](const SyncseqAutocorr & l, const SyncseqAutocorr & r) -> bool
+        // sort by the correlation mean values from maximum to the minimum
+        std::sort(autocorr_max_mean_arr.begin(), autocorr_max_mean_arr.end(), [&](const SyncseqAutocorr & l, const SyncseqAutocorr & r) -> bool
         {
-            return l.corr_mean > r.corr_mean;
+            return l.corr_mean > r.corr_mean || l.corr_mean == r.corr_mean && (l.period < r.period); // || !(l.period % r.period) && l.num_corr > r.num_corr);
+        });
+
+        // take first means with the same offset
+        std::vector<SyncseqAutocorr> autocorr_first_offset_mean_arr;
+
+        autocorr_first_offset_mean_arr.reserve((data.autocorr_in_params.period_max_repeat + 1) / 2); // guess
+
+        uint64_t first_offset = math::uint32_max;
+
+        for (const auto & autocorr_max_mean_ref : autocorr_max_mean_arr) {
+            if (first_offset != math::uint32_max) {
+                if (first_offset != autocorr_max_mean_ref.offset) {
+                    break;
+                }
+            }
+            else {
+                first_offset = autocorr_max_mean_ref.offset;
+            }
+
+            autocorr_first_offset_mean_arr.push_back(autocorr_max_mean_ref);
+        }
+
+        // sort by period from minimum to the maximum irrespectively to the correlation mean value
+        std::sort(autocorr_first_offset_mean_arr.begin(), autocorr_first_offset_mean_arr.end(), [&](const SyncseqAutocorr & l, const SyncseqAutocorr & r) -> bool
+        {
+            return l.period < r.period;
         });
 
         // search first maximum correlation mean value with declared repeats in a stream
         uint64_t syncseq_bit_offset = math::uint64_max;
         uint32_t syncseq_period = math::uint32_max;
-        float autocorr_mean = 0;
 
-        for (auto autocorr_mean_ref : autocorr_mean_deq) {
-            if (autocorr_mean_ref.num_corr < 1 || !autocorr_mean_ref.period) { // just in case
+        float max_corr_mean = 0;
+        float used_corr_mean = 0;
+        uint32_t period_used_repeat = 0;
+
+        for (auto autocorr_max_mean_ref : autocorr_first_offset_mean_arr) {
+            max_corr_mean = (std::max)(max_corr_mean, autocorr_max_mean_ref.corr_mean);
+
+            if (autocorr_max_mean_ref.num_corr < 1 || !autocorr_max_mean_ref.period) { // just in case
                 assert(0);
                 continue;
             }
 
-            if (autocorr_mean_ref.corr_mean < g_options.autocorr_mean_min) {
+            if (autocorr_max_mean_ref.corr_mean < data.autocorr_in_params.min_corr_mean) {
                 break;
             }
 
-            if (autocorr_mean_ref.num_corr >= syncseq_min_repeat + 1) {
-                syncseq_bit_offset = autocorr_mean_ref.offset;
-                syncseq_period = autocorr_mean_ref.period;
-                autocorr_mean = autocorr_mean_ref.corr_mean;
+            if (autocorr_max_mean_ref.num_corr >= data.autocorr_in_params.period_min_repeat + 1) {
+                syncseq_bit_offset = autocorr_max_mean_ref.offset;
+                syncseq_period = autocorr_max_mean_ref.period;
+                used_corr_mean = autocorr_max_mean_ref.corr_mean;
+                period_used_repeat = autocorr_max_mean_ref.num_corr;
                 break;
             }
         }
@@ -441,29 +466,42 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
         if (syncseq_bit_offset != math::uint64_max) {
             data.syncseq_bit_offset = syncseq_bit_offset;
             data.stream_params.stream_width = syncseq_period;
-            data.autocorr_params.mean = autocorr_mean;
+            data.autocorr_io_params.used_corr_mean = used_corr_mean;
+            data.autocorr_io_params.period_used_repeat = period_used_repeat;
         }
+        else {
+            data.stream_params.stream_width = math::uint32_max; // print other calculated values
+        }
+
+        data.autocorr_io_params.max_corr_mean = max_corr_mean;
     }
     else if (autocorr_values_arr.size()) {
+        data.stream_params.stream_width = math::uint32_max; // print other calculated values
+
         // search first maximum correlation value
         uint64_t syncseq_bit_offset = math::uint64_max;
-        float corr_max_value = 0;
+
+        float used_corr_value = 0;
+        float max_corr_value = 0;
 
         for (size_t i = 0; i < autocorr_values_arr.size(); i++) {
             const float corr_value = autocorr_values_arr[i];
 
-            if (corr_max_value < corr_value) {
-                corr_max_value = corr_value;
+            if (max_corr_value < corr_value) {
+                max_corr_value = corr_value;
                 syncseq_bit_offset = i;
+                used_corr_value = corr_value;
             }
         }
 
         if (syncseq_bit_offset != math::uint64_max) {
-            if (corr_max_value >= g_options.autocorr_mean_min) {
+            if (max_corr_value >= g_options.autocorr_mean_min) {
                 data.syncseq_bit_offset = syncseq_bit_offset;
+                data.autocorr_io_params.used_corr_value = used_corr_value;
             }
-            data.autocorr_params.value = corr_max_value;
         }
+
+        data.autocorr_io_params.max_corr_value = max_corr_value;
     }
 
 #if 1 // DO NOT REMOVE: search algorithm false positive calculation code to test algorithm stability within input noise
@@ -477,7 +515,7 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
     //
 
     // Example of expressions for the watch window in a debugger to represent statistical validity and certainty of the
-    // correlation values output without mean search (first phase of the algorithm before the `syncseq_autocorr_mean_deq` calculation):
+    // correlation values output without mean search (first phase of the algorithm before the `autocorr_max_mean_arr` calculation):
     //
     //  true_num                                    // quantity of found true positions, just for a self test
     //
@@ -493,9 +531,9 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
     //                                              //
 
     // Example of expressions for the watch window in a debugger to represent statistical validity and certainty of the
-    // correlation mean values output (second phase of the algorithm with the `syncseq_autocorr_mean_deq` calculation):
+    // correlation mean values output (second phase of the algorithm with the `autocorr_max_mean_arr` calculation):
     //
-    //  &autocorr_mean_deq[0],30                    // Correlation mean values together with particular number of correlation values used to calculate the mean value and
+    //  &autocorr_max_mean_arr[0],30                // Correlation mean values together with particular number of correlation values used to calculate the mean value and
     //                                              // bit stream offset and period, sorted from correlation mean maximum value to minimum.
     //
     //  &false_in_true_max_corr_mean_arr[0],30      // false positive correlation values within true positions, sorted from correlation mean maximum value to minimum
@@ -528,7 +566,7 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
     std::vector<SyncseqAutocorrStats> false_in_true_max_corr_mean_arr;
 
     calculate_syncseq_autocorrelation_false_positive_stats(
-        autocorr_values_arr, !g_flags.disable_calc_autocorr_mean ? &autocorr_mean_deq : nullptr,
+        autocorr_values_arr, !g_flags.disable_calc_autocorr_mean ? &autocorr_max_mean_arr : nullptr,
         true_positions_index_arr,
         true_num, 30,
         false_max_corr_arr, false_max_index_arr, true_max_corr_arr, true_max_index_arr,
