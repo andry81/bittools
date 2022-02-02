@@ -172,7 +172,7 @@ tkl_exclude_paths_from_path_list(. common_sources "${common_sources}" "/~" 0)
 # generate standalone sources groups
 foreach(target ${ALL_EXE_TARGETS})
   file(GLOB_RECURSE sources_${target} src/${target}/*.cpp src/${target}/*.h*)
-  file(GLOB_RECURSE resources_${target} src/${target}/*.tpl src/${target}/*.txt)
+  file(GLOB_RECURSE resources_${target} src/${target}/*.tpl src/${target}/*.def src/${target}/*.txt)
 
   # exclude target headers
   tkl_exclude_paths_from_path_list(. common_private_headers "${common_private_headers}" "${sources_${target}}" 0)

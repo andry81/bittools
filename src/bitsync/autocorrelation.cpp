@@ -500,6 +500,9 @@ void calculate_syncseq_autocorrelation(
     //                        , where N - stream bit length, M - synchro sequence bit length
     //
 
+    float min_corr_value = math::float_max;
+    float max_corr_value = 0;
+
     for (size_t i = 0; i < stream_bit_size; i++) {
         auto & autocorr_value_ref = autocorr_values_arr[i];
         autocorr_value_ref =
@@ -509,22 +512,28 @@ void calculate_syncseq_autocorrelation(
                 syncseq_bit_size,
                 syncseq_autocorr_absmax_arr,
                 stream_autocorr_absmax_arr[i]);
+
+        min_corr_value = (std::min)(min_corr_value, autocorr_value_ref);
+        max_corr_value = (std::max)(max_corr_value, autocorr_value_ref);
     }
 
-    // Second phase:
-    //  Autocorrelation mean (average) values calculation, significantly increases algorithm certainty or false positive stability within input noise.
-    //
-    // Produces correlation mean values with noticeable certainty tolerance around 66% from the math expected value of number `one` bits per synchro sequence length,
-    // where math expected value is equal to the half of synchro sequence length.
-    // For example, if synchro sequence has 20 bits length, then algorithm would output uncertain correlation mean values after a value greater than 66% of noised
-    // bits of 10 bits, i.e. greater than ~6 noised bits per 20 bit synchro sequence.
-    //
-    // Memory complexity:   O(N)
-    // Time complexity:     o(N * N * N) or in approximation ~ (N ^ 1/3) * (N ^ 1/2) * N
-    //                        , where N - stream bit length
-    //
+    autocorr_io_params.min_corr_value = min_corr_value;
+    autocorr_io_params.max_corr_value = max_corr_value;
 
-    if_break (autocorr_max_mean_arr_ptr) {
+    if_break(autocorr_max_mean_arr_ptr) {
+        // Second phase:
+        //  Autocorrelation mean (average) values calculation, significantly increases algorithm certainty or false positive stability within input noise.
+        //
+        // Produces correlation mean values with noticeable certainty tolerance around 66% from the math expected value of number `one` bits per synchro sequence length,
+        // where math expected value is equal to the half of synchro sequence length.
+        // For example, if synchro sequence has 20 bits length, then algorithm would output uncertain correlation mean values after a value greater than 66% of noised
+        // bits of 10 bits, i.e. greater than ~6 noised bits per 20 bit synchro sequence.
+        //
+        // Memory complexity:   O(N)
+        // Time complexity:     o(N * N * N) or in approximation ~ (N ^ 1/3) * (N ^ 1/2) * N
+        //                        , where N - stream bit length
+        //
+
         auto & autocorr_max_mean_arr = *autocorr_max_mean_arr_ptr;
 
         const auto syncseq_min_repeat = autocorr_in_params.period_min_repeat;
@@ -561,13 +570,13 @@ void calculate_syncseq_autocorrelation(
             break;
         }
 
-        // calculate maximum storage size for autocorrelation mean values to cancel calculations
-        const uint64_t autocorr_max_mean_arr_max_size = autocorr_in_params.max_corr_mean_bytes / sizeof(autocorr_max_mean_arr[0]);
+        // calculate maximum storage size for autocorrelation mean values to cancel calculations, rounding to greater
+        const uint64_t autocorr_max_mean_arr_max_size = (autocorr_in_params.max_corr_mean_bytes + sizeof(autocorr_max_mean_arr[0]) - 1) / sizeof(autocorr_max_mean_arr[0]);
 
         // x 10 to reserve space for at least 10 first results greater or equal than minimal correlation mean value
         const uint64_t autocorr_reserve_mean_arr_max_size = (std::min)(
             autocorr_max_mean_arr_max_size,
-            (stream_bit_size - 1) * (autocorr_in_params.min_corr_mean ? 10 : 1));
+            (stream_bit_size - 1) * (autocorr_in_params.corr_min_value ? 10 : 1));
 
         autocorr_max_mean_arr.reserve(size_t(autocorr_reserve_mean_arr_max_size));
 
@@ -580,17 +589,18 @@ void calculate_syncseq_autocorrelation(
 
         std::vector<AutocorrOffsetMean> autocorr_offset_mean_arr; // for single period and different offsets
 
-        const uint64_t autocorr_offset_mean_arr_max_size = autocorr_in_params.max_corr_mean_bytes / sizeof(autocorr_offset_mean_arr[0]);
-        const uint64_t autocorr_reserve_offset_mean_arr_max_size = (std::min)(autocorr_offset_mean_arr_max_size, stream_bit_size - 1);
-
-        autocorr_offset_mean_arr.reserve(size_t(autocorr_reserve_offset_mean_arr_max_size));
+        autocorr_offset_mean_arr.reserve(size_t(stream_bit_size - 1)); // maximal number of offsets with minimal period
 
         uint32_t num_corr_means_calc = 0;
         uint32_t num_corr_values_all_iterated = 0;
 
-        AutocorrOffsetMean max_autocorr_offset_mean;
+        size_t used_corr_mean_bytes = 0;
+        size_t accum_corr_mean_bytes = 0;
 
-        bool break_ = false;
+        float min_corr_mean_value = math::float_max;
+        float max_corr_mean_value = 0;
+
+        AutocorrOffsetMean max_autocorr_offset_mean;
 
         for (uint64_t period = stream_max_period; period >= stream_min_period; period--) {
             autocorr_offset_mean_arr.clear();
@@ -606,12 +616,7 @@ void calculate_syncseq_autocorrelation(
 
                 num_corr_values_all_iterated++;
 
-                if (autocorr_offset_mean_arr.size() >= autocorr_offset_mean_arr_max_size) {
-                    // out of buffer max, cancel calculation
-                    break_ = true;
-                    num_corr_means_calc++;
-                    break;
-                }
+                used_corr_mean_bytes = (std::max)(used_corr_mean_bytes, autocorr_offset_mean_arr.size() * sizeof(autocorr_offset_mean_arr[0]));
 
                 while (j < stream_bit_size && repeat < syncseq_max_repeat) {
                     autocorr_offset_mean.corr_mean += autocorr_values_arr[size_t(j)];
@@ -627,15 +632,21 @@ void calculate_syncseq_autocorrelation(
                 num_corr_means_calc++;
             }
 
-            if (autocorr_in_params.min_corr_mean) {
+            if (autocorr_in_params.corr_min_value) {
                 for (size_t i = 0; i < autocorr_offset_mean_arr.size(); i++) {
                     const AutocorrOffsetMean & autocorr_period_mean = autocorr_offset_mean_arr[i];
 
-                    if (autocorr_period_mean.corr_mean >= autocorr_in_params.min_corr_mean) {
+                    if (autocorr_period_mean.num_corr > 1 && autocorr_period_mean.corr_mean >= autocorr_in_params.corr_min_value) {
                         autocorr_max_mean_arr.push_back(SyncseqAutocorr{
-                            autocorr_period_mean.corr_mean, autocorr_period_mean.num_corr, autocorr_period_mean.offset, uint32_t(period)
+                            uint32_t(autocorr_period_mean.offset), uint32_t(period), autocorr_period_mean.num_corr, autocorr_period_mean.corr_mean, 0
                         });
+
+                        used_corr_mean_bytes = (std::max)(used_corr_mean_bytes, autocorr_max_mean_arr.size() * sizeof(autocorr_max_mean_arr[0]));
+                        accum_corr_mean_bytes = (std::max)(accum_corr_mean_bytes, autocorr_max_mean_arr.size() * sizeof(autocorr_max_mean_arr[0]));
                     }
+
+                    min_corr_mean_value = (std::min)(min_corr_mean_value, autocorr_period_mean.corr_mean);
+                    max_corr_mean_value = (std::max)(max_corr_mean_value, autocorr_period_mean.corr_mean);
                 }
             }
             else {
@@ -647,27 +658,238 @@ void calculate_syncseq_autocorrelation(
                     if (max_autocorr_offset_mean.corr_mean < autocorr_period_mean.corr_mean) {
                         max_autocorr_offset_mean = autocorr_period_mean;
                     }
+
+                    min_corr_mean_value = (std::min)(min_corr_mean_value, autocorr_period_mean.corr_mean);
+                    max_corr_mean_value = (std::max)(max_corr_mean_value, autocorr_period_mean.corr_mean);
                 }
 
-                if (max_autocorr_offset_mean.corr_mean) {
+                if (max_autocorr_offset_mean.num_corr > 1 && max_autocorr_offset_mean.corr_mean) { // ignore single correlation values
                     autocorr_max_mean_arr.push_back(SyncseqAutocorr{
-                        max_autocorr_offset_mean.corr_mean, max_autocorr_offset_mean.num_corr, max_autocorr_offset_mean.offset, uint32_t(period)
+                        uint32_t(max_autocorr_offset_mean.offset), uint32_t(period), max_autocorr_offset_mean.num_corr, max_autocorr_offset_mean.corr_mean, 0
                     });
+
+                    used_corr_mean_bytes = (std::max)(used_corr_mean_bytes, autocorr_max_mean_arr.size() * sizeof(autocorr_max_mean_arr[0]));
+                    accum_corr_mean_bytes = (std::max)(accum_corr_mean_bytes, autocorr_max_mean_arr.size() * sizeof(autocorr_max_mean_arr[0]));
                 }
             }
 
-            if (break_ || autocorr_max_mean_arr.size() >= autocorr_max_mean_arr_max_size) {
+            if (accum_corr_mean_bytes >= autocorr_in_params.max_corr_mean_bytes) {
                 // out of buffer max, cancel calculation
+                autocorr_io_params.accum_corr_mean_quit = true;
                 break;
             }
         }
 
+        autocorr_io_params.min_corr_mean = min_corr_mean_value;
+        autocorr_io_params.max_corr_mean = max_corr_mean_value;
+
         autocorr_io_params.num_corr_values_iterated = num_corr_values_all_iterated;
         autocorr_io_params.num_corr_means_calc = num_corr_means_calc;
+
+        autocorr_io_params.used_corr_mean_bytes = used_corr_mean_bytes;
+        autocorr_io_params.accum_corr_mean_bytes = accum_corr_mean_bytes;
+
+        // Third phase:
+        //  Autocorrelation maximum mean (average) values weighted sum calculation, makes groups of offsets grouped with a multiple by a period,
+        //  where groups sorted by offset and then by period in a group.
+        //
+        //  Calculate weighted sums of maximal mean values in groups calculated for the same offset with a multiple by a period.
+        //
+        //  The output can later be sorted by maximum mean sum from maximum to minimum, then by offset from minimum to maximum and
+        //  then by period for an offset from minimum to maximum.
+        //
+        //  Helps to resort found offsets and periods to locate more certain values which brings even more stability for false positives.
+        //
+        // Example:
+        //
+        //  index |   max mean   | num corr |  offset  |  period
+        // -------+--------------+----------+----------+---------
+        //    1   |    0.850     |    30    |    20    |    33
+        //    2   |    0.845     |     5    |    10    |   200
+        //    3   |    0.841     |    11    |    30    |    90
+        //    4   |    0.836     |    11    |    10    |   100
+        //    5   |    0.831     |     6    |   100    |   165
+        //    6   |    0.823     |    17    |   100    |    55
+        //
+        // Memory complexity:   Constant
+        // Time complexity:     O(N  * M)
+        //                        , where N - stream bit length, M - number of used periods per offset
+        //
+        // After sort the table above, the result will be:
+        //
+        //        |   max mean   |          |
+        //  index | weighted sum |  offset  |  period
+        // -------+--------------+----------+---------
+        //    4   |    1.1174    |    10    |   100
+        //    2   |    1.1174    |    10    |   200
+        //    6   |    1.0082    |   100    |    55
+        //    5   |    1.0082    |   100    |   165
+        //    1   |    0.850     |    20    |    33
+        //    3   |    0.841     |    30    |    90
+        //
+        //  , where:
+        //
+        //    1.1174 = 0.836 + 0.845 * (5 - 1) / (11 - 1)
+        //    1.0082 = 0.823 + 0.831 * (6 - 1) / (17 - 1)
+        //
+
+        const auto autocorr_max_mean_arr_size = autocorr_max_mean_arr.size();
+
+        if (autocorr_max_mean_arr_size) {
+            auto begin_it = autocorr_max_mean_arr.begin();
+            auto end_it = autocorr_max_mean_arr.end();
+
+            // sort by offset
+
+            std::sort(begin_it, end_it, [&](const SyncseqAutocorr & l, const SyncseqAutocorr & r) -> bool
+            {
+                return l.offset < r.offset;
+            });
+
+            // sort by period in an offset
+
+            auto first_it = begin_it;
+
+            auto prev_it = begin_it;
+            auto next_it = prev_it;
+
+            for (next_it++; next_it != end_it; prev_it = next_it, next_it++) {
+                auto & autocorr_max_mean_prev_ref = *prev_it;
+                auto & autocorr_max_mean_next_ref = *next_it;
+
+                if (autocorr_max_mean_prev_ref.offset != autocorr_max_mean_next_ref.offset) {
+                    std::sort(first_it, next_it, [&](const SyncseqAutocorr & l, const SyncseqAutocorr & r) -> bool
+                    {
+                        return l.period > r.period;
+                    });
+
+                    first_it = next_it;
+                }
+            }
+
+            // calculate autocorrelation mean weights and local mean sums, O(N * M) time complexity
+
+            first_it = begin_it;
+
+            prev_it = begin_it;
+            next_it = prev_it;
+
+            for (next_it++; next_it != end_it; prev_it = next_it, next_it++) {
+                auto & autocorr_max_mean_prev_ref = *prev_it;
+                auto & autocorr_max_mean_next_ref = *next_it;
+
+                if (autocorr_max_mean_prev_ref.offset == autocorr_max_mean_next_ref.offset) {
+                    autocorr_max_mean_prev_ref.corr_mean_sum = autocorr_max_mean_prev_ref.corr_mean * (autocorr_max_mean_prev_ref.num_corr - 1);
+                }
+                else {
+                    autocorr_max_mean_prev_ref.corr_mean_sum = autocorr_max_mean_prev_ref.corr_mean;
+
+                    // accumulate mean sum for a minimal period
+                    for (auto it = first_it; it != prev_it; it++) {
+                        if (!(it->period % autocorr_max_mean_prev_ref.period)) {
+                            autocorr_max_mean_prev_ref.corr_mean_sum += it->corr_mean_sum / (autocorr_max_mean_prev_ref.num_corr - 1);
+                        }
+                    }
+
+                    first_it = next_it;
+                }
+            }
+
+            auto & autocorr_max_mean_last_ref = autocorr_max_mean_arr.back();
+
+            autocorr_max_mean_last_ref.corr_mean_sum = autocorr_max_mean_last_ref.corr_mean;
+
+            // accumulate mean sum for a minimal period
+            for (auto it = first_it; it != prev_it; it++) {
+                if (!(it->period % prev_it->period)) {
+                    prev_it->corr_mean_sum += it->corr_mean_sum / (prev_it->num_corr - 1);
+                }
+            }
+
+            // calculate autocorrelation mean sum, O(N) time complexity
+
+            auto begin_rit = autocorr_max_mean_arr.rbegin();
+            auto end_rit = autocorr_max_mean_arr.rend();
+
+            auto first_rit = begin_rit;
+
+            auto prev_rit = begin_rit;
+            auto next_rit = prev_rit;
+
+            for (next_rit++; next_rit != end_rit; prev_rit = next_rit, next_rit++) {
+                auto & autocorr_max_mean_prev_ref = *prev_rit;
+                auto & autocorr_max_mean_next_ref = *next_rit;
+
+                if (autocorr_max_mean_prev_ref.offset == autocorr_max_mean_next_ref.offset) {
+                    if (!(autocorr_max_mean_next_ref.period % first_rit->period)) {
+                        autocorr_max_mean_next_ref.corr_mean_sum = first_rit->corr_mean_sum;
+                    }
+                    else { // not a multiple by a minimal period, reset to mean value
+                        autocorr_max_mean_next_ref.corr_mean_sum = autocorr_max_mean_next_ref.corr_mean;
+                    }
+                }
+                else {
+                    first_rit = next_rit;
+                }
+            }
+
+            // sort by correlation mean sum
+
+            std::sort(begin_it, end_it, [&](const SyncseqAutocorr & l, const SyncseqAutocorr & r) -> bool
+            {
+                return l.corr_mean_sum > r.corr_mean_sum;
+            });
+
+            // sort by offset in a correlation mean sum
+
+            first_it = begin_it;
+
+            prev_it = begin_it;
+            next_it = prev_it;
+
+            for (next_it++; next_it != end_it; prev_it = next_it, next_it++) {
+                auto & autocorr_max_mean_prev_ref = *prev_it;
+                auto & autocorr_max_mean_next_ref = *next_it;
+
+                if (autocorr_max_mean_prev_ref.corr_mean_sum != autocorr_max_mean_next_ref.corr_mean_sum) {
+                    std::sort(first_it, next_it, [&](const SyncseqAutocorr & l, const SyncseqAutocorr & r) -> bool
+                    {
+                        return l.offset < r.offset;
+                    });
+
+                    first_it = next_it;
+
+                    break; // skip to sort the rest
+                }
+            }
+
+            // sort by period in an offset
+
+            first_it = begin_it;
+
+            prev_it = begin_it;
+            next_it = prev_it;
+
+            for (next_it++; next_it != end_it; prev_it = next_it, next_it++) {
+                auto & autocorr_max_mean_prev_ref = *prev_it;
+                auto & autocorr_max_mean_next_ref = *next_it;
+
+                if (autocorr_max_mean_prev_ref.offset != autocorr_max_mean_next_ref.offset) {
+                    std::sort(first_it, next_it, [&](const SyncseqAutocorr & l, const SyncseqAutocorr & r) -> bool
+                    {
+                        return l.period < r.period;
+                    });
+
+                    first_it = next_it;
+
+                    break; // skip to sort the rest
+                }
+            }
+        }
     }
 }
 
-// search algorithm false positive statistic calculation code to test algorithm stability within input noise
+// Search algorithm false positive statistic calculation code to test the algorithm stability within input noise.
 //
 void calculate_syncseq_autocorrelation_false_positive_stats(
     const std::vector<float> &              autocorr_values_arr,
@@ -818,6 +1040,7 @@ void calculate_syncseq_autocorrelation_false_positive_stats(
         if (!j) break;
     }
 
+    // the second and third phase algorithm output analysis
     if (autocorr_max_mean_arr_ptr && false_in_true_max_corr_mean_arr_ptr) {
         const auto & autocorr_max_mean_arr = *autocorr_max_mean_arr_ptr;
         auto & false_in_true_max_corr_mean_arr = *false_in_true_max_corr_mean_arr_ptr;

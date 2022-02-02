@@ -131,15 +131,22 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
         Duplicate input into <file>.
         Can be used to output the noised input.
 
-      /autocorr-mean-min <value>
-        Autocorrelation minimum mean value to treat it as certain.
-        Can filter out uncertain offset and period result if found maximum
-        autocorrelation mean value is less.
+      /autocorr-min <value>
+        Autocorrelation minimum value to treat it as certain.
+        Can filter out uncertain offset and period result if a found
+        autocorrelation value or autocorrelation  mean value is less.
 
-        If autocorrelation mean values algorithm is disabled then used as
+        If the autocorrelation mean values algorithm is disabled, then used as
         minimum for an autocorrelation value.
 
         Must be in range [0; 1].
+
+        CAUTION:
+          If the parameter is defined, then a set of correlation values does
+          use for each period.
+          If the parameter is not defined, then the only maximum correlation
+          value does use for each period, which means the calculated result
+          may become uncertain.
 
       /autocorr-mean-buf-max-size-mb <value>
         Maximum buffer size in megabytes to store calculated autocorrelation

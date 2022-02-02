@@ -9,7 +9,7 @@ struct AutocorrInParams
 {
     uint64_t                        stream_bit_size;
     uint32_t                        syncseq_bit_size;
-    float                           min_corr_mean;                  // used for both the autocorrelation min value and the autocorrelation min mean value
+    float                           corr_min_value;                 // used for both the autocorrelation min value and the autocorrelation min mean value
     uint32_t                        period_min_repeat;              // period min/max repeat quantity to calculate autocorrelation mean values
     uint32_t                        period_max_repeat;
     size_t                          max_corr_mean_bytes;
@@ -35,23 +35,31 @@ struct AutocorrInOutParams // input/output parameters
 
     uint32_t                        syncseq_int32;
     float                           used_corr_value;
+    float                           min_corr_value;
     float                           max_corr_value;
     float                           used_corr_mean;
+    float                           min_corr_mean;
     float                           max_corr_mean;
     uint32_t                        min_period;
     uint32_t                        max_period;
     uint32_t                        period_used_repeat;
     size_t                          num_corr_means_calc;            // number of all autocorrelation mean values calculated for all offsets and all periods in each offset
     size_t                          num_corr_values_iterated;       // number of iteration over all autocorrelation values, represents resulted O(n) time complexity for input conditions
-    size_t                          used_corr_mean_bytes;           // container bytes used to store all maximal per period autocorrelation mean values, represents resulted O(n) memory complexity for input conditions
+    size_t                          used_corr_mean_bytes;           // all containers bytes used to store all autocorrelation mean values, represents overall memory usage
+    size_t                          accum_corr_mean_bytes;          // Container bytes used to store accumulated autocorrelation mean values.
+                                                                    // Represents resulted O(n) memory complexity for input conditions.
+                                                                    // If this value hit the maximum, then autocorrelation mean values calculation algorithm does a quit.
+    bool                            accum_corr_mean_quit;           // Indicates autocorrelation mean values calculation algorithm early quit.
 };
 
 struct SyncseqAutocorr
 {
-    float                           corr_mean;      // autocorrelation mean (average) value
-    uint32_t                        num_corr;       // number of available correlations used to calculate mean value
-    uint64_t                        offset;         // stream offset
-    uint32_t                        period;         // stream width/period
+    uint32_t                        offset;                         // stream offset
+    uint32_t                        period;                         // stream width/period
+    uint32_t                        num_corr;                       // number of available correlations used to calculate mean value
+    float                           corr_mean;                      // autocorrelation mean (average) value             (second phase calculation)
+    //float                           corr_mean_weight;               // autocorrelation mean (average) values weight     (third phase calculation)
+    float                           corr_mean_sum;                  // autocorrelation mean (average) values sum        (third phase calculation)
 };
 
 struct SyncseqAutocorrStats
