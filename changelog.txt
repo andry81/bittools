@@ -1,4 +1,7 @@
 2022.02.02:
+* fixed: BuildTools/TargetProject.PreBuildStep.bat: invalid `-u` flag usage for the `thlibautocfg` utility
+
+2022.02.02:
 * fixed: src/bitsync: minor fixup
 * new: src/bitsync: added weighted sums of correlation maximum mean values algorithm to increase output certainty and false positive resistance within input noise
 * new: src/bitsync: print more statistic data
