@@ -54,6 +54,8 @@ Options::Options()
     bits_per_baud                   = 0;
     gen_input_noise_bit_block_size  = 0;
     gen_input_noise_block_bit_prob  = 0;
+    insert_output_synseq_offset     = math::uint32_max;
+    insert_output_synseq_period     = 0;
     autocorr_min = 0;
     autocorr_mean_buf_max_size_mb = 400; // 400 Mb is default
 }
@@ -70,14 +72,18 @@ inline void generate_noise(const BasicData & basic_data, StreamParams & stream_p
 {
     uint8_t * buf_out = buf;
 
-    uint64_t stream_bit_offset = stream_params.last_bit_offset;
+    const uint64_t stream_bit_size = size * 8;
+
+    const uint64_t stream_bit_start_offset = stream_params.last_bit_offset;
+
+    uint64_t stream_bit_offset = stream_bit_start_offset;
 
     // generate input noise
     const uint32_t gen_input_noise_bit_block_size = basic_data.options_ptr->gen_input_noise_bit_block_size;
 
     if (gen_input_noise_bit_block_size) {
         uint64_t buf_bit_offset = 0;
-        uint64_t buf_remain_bit_size = size * 8;
+        uint64_t buf_remain_bit_size = stream_bit_size;
 
         const uint32_t gen_input_noise_block_bit_prob = basic_data.options_ptr->gen_input_noise_block_bit_prob;
 
@@ -202,6 +208,88 @@ inline void generate_noise(const BasicData & basic_data, StreamParams & stream_p
     }
 }
 
+inline void write_syncseq(const tackle::file_handle<TCHAR> & file_out_handle, uint8_t * buf_in, size_t size, uint32_t syncseq_int32, uint32_t syncseq_bit_size, uint32_t offset, uint32_t period)
+{
+    assert(syncseq_bit_size);
+    assert(period);
+
+    const uint64_t stream_bit_size = size * 8;
+    assert(offset < stream_bit_size);
+
+    const uint64_t syncseq_mask64 = uint32_t(~(~uint64_t(0) << syncseq_bit_size));
+    const uint64_t syncseq_bytes = syncseq_int32 & uint32_t(syncseq_mask64);
+
+    uint64_t inserted_stream_bit_size;
+    uint32_t inserted_stream_byte_size;
+
+    if (syncseq_bit_size < period) {
+        inserted_stream_bit_size = stream_bit_size + ((stream_bit_size - offset - 1) / (period - syncseq_bit_size) + 1) * syncseq_bit_size;
+        inserted_stream_byte_size = uint32_t((inserted_stream_bit_size + 7) / 8);
+    }
+    // no data between overlapped synchro sequence, nothing to increase
+    else {
+        inserted_stream_bit_size = stream_bit_size;
+        inserted_stream_byte_size = size;
+    }
+
+    // Output buffer must be padded to 7 bytes remainder to be able to read and shift the last 8-bit block as 64-bit block.
+    // Each byte can be splitted maximum by a 32-bit block, which needs at least 40-bit block bit arithmetic.
+    //
+    const uint64_t padded_inserted_stream_byte_size = inserted_stream_byte_size + 7;
+
+    utility::Buffer inserted_write_buf{ size_t(padded_inserted_stream_byte_size) };
+
+    uint8_t * buf_out = inserted_write_buf.get();
+
+    *(uint64_t *)buf_out = 0; // zeroing first offset
+
+    for (uint64_t i = inserted_stream_byte_size; i < padded_inserted_stream_byte_size; i++) {
+        buf_out[i] = 0; // zeroing padding bytes
+    }
+
+    uint32_t from_byte_offset = size_t(offset / 8);
+    
+    if (from_byte_offset) {
+        memcpy(buf_out, buf_in, from_byte_offset);
+    }
+
+    uint64_t from_bit_offset = offset;
+    uint64_t to_bit_offset = offset;
+
+    if (syncseq_bit_size < period) {
+        while (from_bit_offset < stream_bit_size && to_bit_offset < inserted_stream_bit_size) {
+            memcpy_bitwise64(buf_out, to_bit_offset, (uint8_t*)&syncseq_bytes, 0, syncseq_bit_size);
+
+            const uint64_t bit_size_to_copy = (std::min)(stream_bit_size - from_bit_offset, uint64_t(period - syncseq_bit_size));
+
+            if (bit_size_to_copy) {
+                memcpy_bitwise64(buf_out, to_bit_offset + syncseq_bit_size, buf_in, from_bit_offset, bit_size_to_copy);
+            }
+
+            from_bit_offset += period - syncseq_bit_size;
+            to_bit_offset += period;
+        }
+    }
+    else {
+        while (to_bit_offset < inserted_stream_bit_size) {
+            memcpy_bitwise64(buf_out, to_bit_offset, (uint8_t*)&syncseq_bytes, 0, syncseq_bit_size);
+
+            to_bit_offset += period;
+        }
+    }
+
+    const size_t write_size = fwrite(buf_out, 1, inserted_stream_byte_size, file_out_handle.get());
+    const int file_write_err = ferror(file_out_handle.get());
+    if (write_size < size) {
+        utility::debug_break();
+#ifdef _UNICODE
+        throw std::system_error{ file_write_err, std::system_category(), utility::convert_string_to_string(file_out_handle.path(), utility::tag_string{}, utility::int_identity<utility::StringConv_utf16_to_utf8>{}) };
+#else
+        throw std::system_error{ file_write_err, std::system_category(), file_out_handle.path() };
+#endif
+    }
+}
+
 // Buffer be padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
 //
 void generate_stream(GenData & data, tackle::file_reader_state & state, uint8_t * buf, uint32_t size)
@@ -226,7 +314,7 @@ void generate_stream(GenData & data, tackle::file_reader_state & state, uint8_t 
         generate_noise(data.basic_data, stream_params, noise_params, buf, size); // CAUTION: params copy must be copied!
     }
 
-    // write ready to process input into tee at first
+    // tee preprocessed input
     if (data.basic_data.tee_file_in_handle.get()) {
         const size_t write_size = fwrite(buf, 1, size, data.basic_data.tee_file_in_handle.get());
         const int file_write_err = ferror(data.basic_data.tee_file_in_handle.get());
@@ -246,10 +334,14 @@ void generate_stream(GenData & data, tackle::file_reader_state & state, uint8_t 
 
     const uint32_t bits_per_baud = data.basic_data.options_ptr->bits_per_baud;
 
-    const uint32_t num_wholes = (size * 8) / bits_per_baud;
-    //const uint32_t remainder = (size * 8) % bits_per_baud;
+    const uint64_t stream_bit_size = size * 8;
 
-    uint64_t stream_bit_offset = data.stream_params.last_bit_offset;
+    const uint32_t num_wholes = uint32_t(stream_bit_size / bits_per_baud);
+    //const uint32_t remainder = uint32_t(stream_bit_size % bits_per_baud);
+
+    const uint64_t stream_bit_start_offset = data.stream_params.last_bit_offset;
+
+    uint64_t stream_bit_offset = stream_bit_start_offset;
 
     for (uint32_t i = 0; i < num_wholes; i++)
     {
@@ -277,15 +369,40 @@ void generate_stream(GenData & data, tackle::file_reader_state & state, uint8_t 
 
     data.stream_params.last_bit_offset = stream_bit_offset;
 
-    const size_t write_size = fwrite(buf_out, 1, size, data.file_out_handle.get());
-    const int file_write_err = ferror(data.file_out_handle.get());
-    if (write_size < size) {
-        utility::debug_break();
+    uint64_t synseq_offset = 0;
+
+    if (g_options.insert_output_synseq_period) {
+        synseq_offset = data.basic_data.options_ptr->insert_output_synseq_offset;
+        const uint32_t synseq_period = data.basic_data.options_ptr->insert_output_synseq_period;
+
+        if (synseq_offset >= stream_bit_start_offset) {
+            synseq_offset -= stream_bit_start_offset;
+        }
+        else {
+            synseq_offset = synseq_period - (stream_bit_start_offset - synseq_offset) % synseq_period;
+        }
+
+        if (synseq_offset < stream_bit_size) {
+            write_syncseq(data.file_out_handle, buf_out, size,
+                data.basic_data.options_ptr->syncseq_int32,
+                data.basic_data.options_ptr->syncseq_bit_size,
+                uint32_t(synseq_offset),
+                synseq_period);
+        }
+    }
+
+    if (!g_options.insert_output_synseq_period || synseq_offset >= stream_bit_size) {
+        const size_t write_size = fwrite(buf_out, 1, size, data.file_out_handle.get());
+        const int file_write_err = ferror(data.file_out_handle.get());
+
+        if (write_size < size) {
+            utility::debug_break();
 #ifdef _UNICODE
-        throw std::system_error{ file_write_err, std::system_category(), utility::convert_string_to_string(data.file_out_handle.path(), utility::tag_string{}, utility::int_identity<utility::StringConv_utf16_to_utf8>{}) };
+            throw std::system_error{ file_write_err, std::system_category(), utility::convert_string_to_string(data.file_out_handle.path(), utility::tag_string{}, utility::int_identity<utility::StringConv_utf16_to_utf8>{}) };
 #else
-        throw std::system_error{ file_write_err, std::system_category(), data.file_out_handle.path()};
+            throw std::system_error{ file_write_err, std::system_category(), data.file_out_handle.path() };
 #endif
+        }
     }
 }
 
@@ -296,6 +413,10 @@ inline void pipe_stream(PipeData & data, tackle::file_reader_state & state, uint
     if (!!data.basic_data.options_ptr->stream_byte_size) {
         state.break_ = true;
     }
+
+    const uint64_t stream_bit_size = size * 8;
+
+    const uint64_t stream_bit_start_offset = data.stream_params.last_bit_offset;
 
     // Buffer is already padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
     //
@@ -311,7 +432,7 @@ inline void pipe_stream(PipeData & data, tackle::file_reader_state & state, uint
         generate_noise(data.basic_data, data.stream_params, data.noise_params, buf, size);
     }
 
-    // write ready to process input into tee at first
+    // tee preprocessed input
     if (data.basic_data.tee_file_in_handle.get()) {
         const size_t write_size = fwrite(buf, 1, size, data.basic_data.tee_file_in_handle.get());
         const int file_write_err = ferror(data.basic_data.tee_file_in_handle.get());
@@ -325,15 +446,39 @@ inline void pipe_stream(PipeData & data, tackle::file_reader_state & state, uint
         }
     }
 
-    const size_t write_size = fwrite(buf, 1, size, data.file_out_handle.get());
-    const int file_write_err = ferror(data.file_out_handle.get());
-    if (write_size < size) {
-        utility::debug_break();
+    uint64_t synseq_offset = 0;
+
+    if (g_options.insert_output_synseq_period) {
+        synseq_offset = data.basic_data.options_ptr->insert_output_synseq_offset;
+        const uint32_t synseq_period = data.basic_data.options_ptr->insert_output_synseq_period;
+
+        if (synseq_offset >= stream_bit_start_offset) {
+            synseq_offset -= stream_bit_start_offset;
+        }
+        else {
+            synseq_offset = synseq_period - (stream_bit_start_offset - synseq_offset) % synseq_period;
+        }
+
+        if (synseq_offset < stream_bit_size) {
+            write_syncseq(data.file_out_handle, buf, size,
+                data.basic_data.options_ptr->syncseq_int32,
+                data.basic_data.options_ptr->syncseq_bit_size,
+                uint32_t(synseq_offset),
+                synseq_period);
+        }
+    }
+
+    if (!g_options.insert_output_synseq_period || synseq_offset >= stream_bit_size) {
+        const size_t write_size = fwrite(buf, 1, size, data.file_out_handle.get());
+        const int file_write_err = ferror(data.file_out_handle.get());
+        if (write_size < size) {
+            utility::debug_break();
 #ifdef _UNICODE
-        throw std::system_error{ file_write_err, std::system_category(), utility::convert_string_to_string(data.file_out_handle.path(), utility::tag_string{}, utility::int_identity<utility::StringConv_utf16_to_utf8>{}) };
+            throw std::system_error{ file_write_err, std::system_category(), utility::convert_string_to_string(data.file_out_handle.path(), utility::tag_string{}, utility::int_identity<utility::StringConv_utf16_to_utf8>{}) };
 #else
-        throw std::system_error{ file_write_err, std::system_category(), data.file_out_handle.path() };
+            throw std::system_error{ file_write_err, std::system_category(), data.file_out_handle.path() };
 #endif
+        }
     }
 }
 
@@ -374,7 +519,7 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
         generate_noise(data.basic_data, stream_params, noise_params, buf, size); // CAUTION: params copy must be copied!
     }
 
-    // write ready to process input into tee at first
+    // tee preprocessed input
     if (data.basic_data.tee_file_in_handle.get()) {
         const size_t write_size = fwrite(buf, 1, size, data.basic_data.tee_file_in_handle.get());
         const int file_write_err = ferror(data.basic_data.tee_file_in_handle.get());

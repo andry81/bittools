@@ -12,6 +12,7 @@
 
 
 // The autocorrelation function algorithm for a synchro sequence in a bit stream as nondeterministic not differentiable signal.
+// Finds the synchro sequence most weighted offset and period.
 //
 
 //  Auto correlation function default range:
@@ -417,7 +418,7 @@ void calculate_syncseq_autocorrelation(
 
     const auto syncseq_int32 = autocorr_io_params.syncseq_int32;
     const uint32_t syncseq_mask = uint32_t(~(~uint64_t(0) << syncseq_bit_size));
-    const auto syncseq_bytes = syncseq_int32 & syncseq_mask;
+    const uint32_t syncseq_bytes = syncseq_int32 & syncseq_mask;
 
     // write back
     autocorr_io_params.syncseq_int32 = syncseq_bytes;
@@ -448,7 +449,7 @@ void calculate_syncseq_autocorrelation(
     uint64_t stream_bit_offset = 0;
     bool break_ = false;
 
-    // linear complexity
+    // O(N * M) complexity
     for (uint32_t from = 0; from < num_stream_32bit_blocks; from++) {
         const uint64_t from64 = *(uint64_t *)(stream_buf32 + from);
 
@@ -495,7 +496,7 @@ void calculate_syncseq_autocorrelation(
     //      Even if the algorithm has a complete instability for not false positive output if over a tolerance, but nonetheless that does not mean it is
     //      stable enough below the tolerance. To gain stability below the tolerance you must use the second phase algorithm.
     //
-    // Memory complexity:   O(N)
+    // Memory complexity:   O(N * M) - to generate complement functions, O(N) - to calculate correlation values
     // Time complexity:     O(N * M)
     //                        , where N - stream bit length, M - synchro sequence bit length
     //
@@ -529,9 +530,9 @@ void calculate_syncseq_autocorrelation(
         // For example, if synchro sequence has 20 bits length, then algorithm would output uncertain correlation mean values after a value greater than 66% of noised
         // bits of 10 bits, i.e. greater than ~6 noised bits per 20 bit synchro sequence.
         //
-        // Memory complexity:   O(N)
+        // Memory complexity:   from O(N) to o(N * N * N), depends on the C constant below, in approximation ~ O(N) for `/autocorr-min 0.81`
         // Time complexity:     o(N * N * N) or in approximation ~ (N ^ 1/3) * (N ^ 1/2) * N
-        //                        , where N - stream bit length
+        //                        , where N - stream bit length, C - a constant in range [0; 1] controlled through the `/autocorr-min` option (inversed)
         //
 
         auto & autocorr_max_mean_arr = *autocorr_max_mean_arr_ptr;
@@ -691,46 +692,63 @@ void calculate_syncseq_autocorrelation(
 
         // Third phase:
         //  Autocorrelation maximum mean (average) values weighted sum calculation, makes groups of offsets grouped with a multiple by a period,
-        //  where groups sorted by offset and then by period in a group.
+        //  where groups sorted by offset and then by period in a group. Or in another words does calculate weighted sums of maximal mean values
+        //  in groups calculated for the same offset with a multiple by a period.
         //
-        //  Calculate weighted sums of maximal mean values in groups calculated for the same offset with a multiple by a period.
+        //  The output is sorted by maximum mean sum from maximum to minimum, then by offset from minimum to maximum and then by period for an
+        //  offset from minimum to maximum.
         //
-        //  The output can later be sorted by maximum mean sum from maximum to minimum, then by offset from minimum to maximum and
-        //  then by period for an offset from minimum to maximum.
+        //  NOTE:
+        //    For speedup reasons the sort by offset does for the first mean sum, by period - for the first offset.
         //
         //  Helps to resort found offsets and periods to locate more certain values which brings even more stability for false positives.
         //
-        // Example:
+        //  The idea is to put the set of solutions with tolerance-equal mean sums which can be in different order:
         //
-        //  index |   max mean   | num corr |  offset  |  period
-        // -------+--------------+----------+----------+---------
-        //    1   |    0.850     |    30    |    20    |    33
-        //    2   |    0.845     |     5    |    10    |   200
-        //    3   |    0.841     |    11    |    30    |    90
-        //    4   |    0.836     |    11    |    10    |   100
-        //    5   |    0.831     |     6    |   100    |   165
-        //    6   |    0.823     |    17    |   100    |    55
+        //    offset  | period
+        //  ----------+--------
+        //  x         | k
+        //  x         | k * 2
+        //  x         | k * 3
+        //  x         | k * n
+        //  x + k     | k * n
+        //  x + k * 2 | k * n
+        //  x + k * 3 | k * n
+        //  x + k * n | k * n
         //
-        // Memory complexity:   Constant
-        // Time complexity:     O(N  * M)
-        //                        , where N - stream bit length, M - number of used periods per offset
+        //  Into sorted order, where x, k, n - is a possible minimum.
         //
-        // After sort the table above, the result will be:
+        //  Memory complexity:   O(N) - input, O(N) - output
+        //  Time complexity:     O(N  * M)
+        //                         , where N - stream bit length, M - number of used periods per offset
         //
-        //        |   max mean   |          |
-        //  index | weighted sum |  offset  |  period
-        // -------+--------------+----------+---------
-        //    4   |    1.1174    |    10    |   100
-        //    2   |    1.1174    |    10    |   200
-        //    6   |    1.0082    |   100    |    55
-        //    5   |    1.0082    |   100    |   165
-        //    1   |    0.850     |    20    |    33
-        //    3   |    0.841     |    30    |    90
+        //  Example:
         //
-        //  , where:
+        //   index |   max mean   | num corr |  offset  |  period
+        //  -------+--------------+----------+----------+---------
+        //     1   |    0.850     |    30    |    20    |    33
+        //     2   |    0.845     |     5    |    10    |   200
+        //     3   |    0.841     |    11    |    30    |    90
+        //     4   |    0.836     |    11    |    10    |   100
+        //     5   |    0.831     |     6    |   100    |   165
+        //     6   |    0.823     |    17    |   100    |    55
         //
-        //    1.1174 = 0.836 + 0.845 * (5 - 1) / (11 - 1)
-        //    1.0082 = 0.823 + 0.831 * (6 - 1) / (17 - 1)
+        //  After sort the table above, the result will be:
+        //
+        //         |   max mean   |          |
+        //   index | weighted sum |  offset  |  period
+        //  -------+--------------+----------+---------
+        //     4   |    1.1174    |    10    |   100
+        //     2   |    1.1174    |    10    |   200
+        //     6   |    1.0082    |   100    |    55
+        //     5   |    1.0082    |   100    |   165
+        //     1   |    0.850     |    20    |    33
+        //     3   |    0.841     |    30    |    90
+        //
+        //   , where:
+        //
+        //     1.1174 = 0.836 + 0.845 * (5 - 1) / (11 - 1)
+        //     1.0082 = 0.823 + 0.831 * (6 - 1) / (17 - 1)
         //
 
         const auto autocorr_max_mean_arr_size = autocorr_max_mean_arr.size();
@@ -889,7 +907,7 @@ void calculate_syncseq_autocorrelation(
     }
 }
 
-// Search algorithm false positive statistic calculation code to test the algorithm stability within input noise.
+// Search algorithm false positive statistic calculation code to test an algorithm phase for stability within input noise.
 //
 void calculate_syncseq_autocorrelation_false_positive_stats(
     const std::vector<float> &              autocorr_values_arr,

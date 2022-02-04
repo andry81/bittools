@@ -80,6 +80,8 @@ struct Options
     std::tstring            gen_token;
     uint32_t                gen_input_noise_bit_block_size; // 0-32767, 0 - don't generate
     uint32_t                gen_input_noise_block_bit_prob; // 1-100
+    uint32_t                insert_output_synseq_offset;
+    uint32_t                insert_output_synseq_period;
     float                   autocorr_min;
     uint64_t                autocorr_mean_buf_max_size_mb;
     tackle::path_tstring    input_file;

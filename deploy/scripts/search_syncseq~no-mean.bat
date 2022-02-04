@@ -36,7 +36,7 @@ call :CMD "%%~dp0bitsync.exe" /s "%%STREAM_BYTE_SIZE%%" gen "%%BITS_PER_BAUD%%" 
 
 for /F "usebackq eol= tokens=* delims=" %%i in (`dir /A:-D /B /O:N "%FILE_DIR_IN%%FILE_NAME_IN%.*%FILE_EXT_IN%"`) do (
   set "FILE_NAME=%%~ni"
-  call :CMD "%%~dp0bitsync.exe"%%BARE_FLAGS%% /disable-calc-autocorr-mean /autocorr-min 0.99 /s "%%STREAM_BYTE_SIZE%%" /r "%%SYNCSEQ_REPEAT%%" /q "%%SYNCSEQ_BIT_SIZE%%" /k "%%SYNCSEQ_INT32%%" sync "%%BITS_PER_BAUD%%" "%%i" . ^
+  call :CMD "%%~dp0bitsync.exe"%%BARE_FLAGS%% /disable-calc-autocorr-mean /autocorr-min 0.99 /s "%%STREAM_BYTE_SIZE%%" /r "%%SYNCSEQ_REPEAT%%" /q "%%SYNCSEQ_BIT_SIZE%%" /k "%%SYNCSEQ_INT32%%" sync "%%i" . ^
   && call :CMD "%%~dp0bitsync.exe" /g "%%FILE_NAME:*.=%%" gen "%%BITS_PER_BAUD%%" "%%FILE_IN%%" .
 )
 

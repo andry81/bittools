@@ -1,3 +1,10 @@
+2022.02.04:
+* fixed: src/bitsync: minor fixup
+* new: src/bitsync: The `/insert-output-syncseq`, `/outss` options to insert a synchro sequence into the output. Can be used together with the `/gen-input-noise`, `/inn` options to output a bit stream with inserted arbitrary synchro sequnce.
+* new: deploy/bitstreams: bit stream examples + readme file
+* changed: src/bitsync, deploy/scripts: removed `bits_per_baud` from the command line in case of `sync` mode
+* changed: src/bitsync: minor improvements
+
 2022.02.02:
 * fixed: BuildTools/TargetProject.PreBuildStep.bat: invalid `-u` flag usage for the `thlibautocfg` utility
 

@@ -13,6 +13,7 @@ const TCHAR * g_flags_to_parse_arr[] = {
     _T("/stream-max-period"), _T("/spmax"),
     _T("/gen-token"), _T("/g"),
     _T("/gen-input-noise"), _T("/inn"),
+    _T("/insert-output-syncseq"), _T("/outss"),
     _T("/tee-input"),
     _T("/autocorr-min"),
     _T("/autocorr-mean-buf-max-size-mb"),
@@ -192,6 +193,25 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         else error = invalid_format_flag(start_arg);
         return 2;
     }
+    if (is_arg_equal_to(arg, _T("/insert-output-syncseq")) || is_arg_equal_to(arg, _T("/outss"))) {
+        arg_offset += 1;
+        if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
+            if (is_arg_in_filter(start_arg, include_filter_arr)) {
+                options.insert_output_synseq_offset = _ttoi(arg);
+
+                arg_offset += 1;
+                if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
+                    options.insert_output_synseq_period = _ttoi(arg);
+                    return 1;
+                }
+                else error = invalid_format_flag(start_arg);
+                return 2;
+            }
+            return 0;
+        }
+        else error = invalid_format_flag(start_arg);
+        return 2;
+    }
     if (is_arg_equal_to(arg, _T("/tee-input"))) {
         arg_offset += 1;
         if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
@@ -343,7 +363,6 @@ int _tmain(int argc, const TCHAR * argv[])
 
                 switch (mode) {
                 case Mode_Gen:
-                case Mode_Sync:
                 case Mode_Gen_Sync:
                 {
                     if (argc >= arg_offset + 1 && (arg = argv[arg_offset]) && tstrlen(arg)) {
@@ -397,6 +416,7 @@ int _tmain(int argc, const TCHAR * argv[])
                         return 255;
                     }
 
+                    // safety check by 2GB maximum
                     if (g_options.stream_byte_size >= math::uint32_max / 2) {
                         _ftprintf(stderr, _T("error: stream_byte_size is too big: stream_byte_size=%u\n"),
                             g_options.stream_byte_size);
@@ -477,12 +497,6 @@ int _tmain(int argc, const TCHAR * argv[])
                     if (g_options.syncseq_max_repeat != math::uint32_max && g_options.syncseq_max_repeat < g_options.syncseq_min_repeat) {
                         _ftprintf(stderr, _T("error: syncseq_min_repeat must be not greater than syncseq_max_repeat: syncseq_min_repeat=%u syncseq_max_repeat=%u\n"),
                             g_options.syncseq_min_repeat, g_options.syncseq_max_repeat);
-                        return 255;
-                    }
-
-                    if (g_options.syncseq_bit_size < g_options.bits_per_baud || g_options.syncseq_bit_size < 2) {
-                        _ftprintf(stderr, _T("error: syncseq_bit_size must be greater or equal to bits_per_baud and be at least 2: syncseq_bit_size=%u bits_per_baud=%u\n"),
-                            g_options.syncseq_bit_size, g_options.bits_per_baud);
                         return 255;
                     }
                 } break;
@@ -567,6 +581,44 @@ int _tmain(int argc, const TCHAR * argv[])
 
                 if (g_options.stream_min_period == math::uint32_max) {
                     g_options.stream_min_period = 0;
+                }
+
+                const tackle::file_handle<TCHAR> file_in_handle = utility::open_file(g_options.input_file, _T("rb"), utility::SharedAccess_DenyWrite);
+
+                const uint64_t stream_byte_size = uint32_t((std::min)(utility::get_file_size(file_in_handle), uint64_t(math::uint32_max))); // CAUTION: read only first 4GB
+                if (!g_options.stream_byte_size || stream_byte_size < g_options.stream_byte_size) {
+                    g_options.stream_byte_size = uint32_t(stream_byte_size);
+                }
+
+                switch (mode) {
+                case Mode_Gen:
+                case Mode_Pipe:
+                {
+                    if (g_options.insert_output_synseq_offset != math::uint32_max) {
+                        if (g_options.insert_output_synseq_offset >= g_options.stream_byte_size * 8) {
+                            _ftprintf(stderr, _T("error: insert_output_synseq_offset must be less than bit stream length: stream_bit_size=%u insert_output_synseq_offset=%u\n"),
+                                g_options.stream_byte_size * 8, g_options.insert_output_synseq_offset);
+                            return 255;
+                        }
+
+                        if (!g_options.insert_output_synseq_period) {
+                            _ftprintf(stderr, _T("error: insert_output_synseq_period must be positive\n"));
+                            return 255;
+                        }
+
+                        if (g_options.insert_output_synseq_period >= g_options.stream_byte_size * 8) {
+                            _ftprintf(stderr, _T("error: insert_output_synseq_period must be less than bit stream length: stream_bit_size=%u insert_output_synseq_period=%u\n"),
+                                g_options.stream_byte_size * 8, g_options.insert_output_synseq_period);
+                            return 255;
+                        }
+
+                        if (g_options.insert_output_synseq_offset + g_options.insert_output_synseq_period >= g_options.stream_byte_size * 8) {
+                            _ftprintf(stderr, _T("error: insert_output_synseq_offset + insert_output_synseq_period must be less than bit stream length: stream_bit_size=%u insert_output_synseq_offset=%u insert_output_synseq_period=%u\n"),
+                                g_options.stream_byte_size * 8, g_options.insert_output_synseq_offset, g_options.insert_output_synseq_period);
+                            return 255;
+                        }
+                    }
+                } break;
                 }
 
                 // parse gen token
@@ -685,16 +737,9 @@ int _tmain(int argc, const TCHAR * argv[])
                 } break;
                 }
 
-                const tackle::file_handle<TCHAR> file_in_handle = utility::open_file(g_options.input_file, _T("rb"), utility::SharedAccess_DenyWrite);
-
                 switch (mode) {
                 case Mode_Gen:
                 {
-                    const uint64_t stream_byte_size = uint32_t((std::min)(utility::get_file_size(file_in_handle), uint64_t(math::uint32_max))); // CAUTION: read only first 4GB
-                    if (!g_options.stream_byte_size || stream_byte_size < g_options.stream_byte_size) {
-                        g_options.stream_byte_size = uint32_t(stream_byte_size);
-                    }
-
                     // Buffer must be padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
                     //
                     const uint32_t padded_stream_byte_size = g_options.stream_byte_size + 3;
@@ -757,11 +802,6 @@ int _tmain(int argc, const TCHAR * argv[])
 
                 case Mode_Sync:
                 {
-                    const uint64_t stream_byte_size = uint32_t((std::min)(utility::get_file_size(file_in_handle), uint64_t(math::uint32_max))); // CAUTION: read only first 4GB
-                    if (!g_options.stream_byte_size || stream_byte_size < g_options.stream_byte_size) {
-                        g_options.stream_byte_size = uint32_t(stream_byte_size);
-                    }
-
                     // Buffer must be padded to a multiple of 4 bytes plus 4 bytes reminder to be able to read and shift the last 32-bit block as 64-bit block.
                     // Buffer must be padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
                     //
@@ -803,10 +843,22 @@ int _tmain(int argc, const TCHAR * argv[])
                             (sync_data.autocorr_io_params.accum_corr_mean_quit || g_flags.disable_calc_autocorr_mean || !g_options.autocorr_min);
 
                         const std::string offset_prefix_warn_str = is_offset_uncertain ? "[!] " : "    ";
-                        const std::string offset_suffix_msg_str = is_offset_uncertain ? " (UNCERTAIN)" : "";
+                        std::string offset_suffix_msg_str = is_offset_uncertain ? " (UNCERTAIN" : "";
 
                         const std::string period_prefix_warn_str = is_period_uncertain ? "[!] " : "    ";
-                        const std::string period_suffix_msg_str = is_period_uncertain ? " (UNCERTAIN)" : "";
+                        std::string period_suffix_msg_str = is_period_uncertain ? " (UNCERTAIN" : "";
+
+                        if (sync_data.autocorr_io_params.accum_corr_mean_quit) {
+                            offset_suffix_msg_str += ": CANCELED";
+                            period_suffix_msg_str += ": CANCELED";
+                        }
+
+                        if (is_offset_uncertain) {
+                            offset_suffix_msg_str += ")";
+                        }
+                        if (is_period_uncertain) {
+                            period_suffix_msg_str += ")";
+                        }
 
                         fmt::print(
                             "length/value:                  {:d} / {:#010x}\n"
@@ -891,11 +943,6 @@ int _tmain(int argc, const TCHAR * argv[])
 
                 case Mode_Pipe:
                 {
-                    const uint64_t stream_byte_size = uint32_t((std::min)(utility::get_file_size(file_in_handle), uint64_t(math::uint32_max))); // CAUTION: read only first 4GB
-                    if (!g_options.stream_byte_size || stream_byte_size < g_options.stream_byte_size) {
-                        g_options.stream_byte_size = uint32_t(stream_byte_size);
-                    }
-
                     // Buffer must be padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
                     //
                     const uint32_t padded_stream_byte_size = g_options.stream_byte_size + 3;

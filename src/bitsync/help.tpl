@@ -3,7 +3,7 @@
   Bit stream synchronization and operation utility.
 
 Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <InputFile> [<OutputFileDir> | <OutputFile>]
-       [+ AppModuleName +].exe [/?] [<Flags>] [//] sync <BitsPerBaud> <InputFile> [<OutputFileDir>]
+       [+ AppModuleName +].exe [/?] [<Flags>] [//] sync <InputFile> [<OutputFileDir>]
        [+ AppModuleName +].exe [/?] [<Flags>] [/gen-token ...] [//] gen <BitsPerBaud> <InputFile> [<OutputFileDir>]
        [+ AppModuleName +].exe [/?] [<Flags>] [/gen-input-noise ...] [//] pipe <InputFile> <OutputFile>
   Description:
@@ -127,6 +127,13 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
           2. `/inn 8 100`
             Invert random bit in each byte.
 
+      /insert-output-syncseq <offset> <period>
+      /outss <offset> <period>
+        Insert synchro sequence in the output by <offset> and <period>.
+        The options `/syncseq-int32` and `/syncseq-bit-size` must be defined.
+
+        Has meaning only for these modes: gen | pipe | gen-sync.
+
       /tee-input <file>
         Duplicate input into <file>.
         Can be used to output the noised input.
@@ -190,6 +197,8 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
 
     <BitsPerBaud>
       Bits per baud in stream (must be <= 2).
+
+      Has meaning only for these modes: gen | gen-sync.
 
     <InputFile>
       Input file path.
