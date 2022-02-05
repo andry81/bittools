@@ -411,7 +411,7 @@ void calculate_syncseq_autocorrelation(
     AutocorrInOutParams &               autocorr_io_params,
     uint8_t *                           stream_buf,
     std::vector<float> &                autocorr_values_arr,
-    std::vector<SyncseqAutocorr> *      autocorr_max_mean_arr_ptr)
+    std::deque<SyncseqAutocorr> *       autocorr_max_mean_deq_ptr)
 {
     const auto stream_bit_size = autocorr_in_params.stream_bit_size;
     const auto syncseq_bit_size = autocorr_in_params.syncseq_bit_size;
@@ -521,7 +521,7 @@ void calculate_syncseq_autocorrelation(
     autocorr_io_params.min_corr_value = min_corr_value;
     autocorr_io_params.max_corr_value = max_corr_value;
 
-    if_break(autocorr_max_mean_arr_ptr) {
+    if_break(autocorr_max_mean_deq_ptr) {
         // Second phase:
         //  Autocorrelation mean (average) values calculation, significantly increases algorithm certainty or false positive stability within input noise.
         //
@@ -535,10 +535,10 @@ void calculate_syncseq_autocorrelation(
         //                        , where N - stream bit length, C - a constant in range [0; 1] controlled through the `/autocorr-min` option (inversed)
         //
 
-        auto & autocorr_max_mean_arr = *autocorr_max_mean_arr_ptr;
+        auto & autocorr_max_mean_deq = *autocorr_max_mean_deq_ptr;
 
         const auto syncseq_min_repeat = autocorr_in_params.period_min_repeat;
-        const auto syncseq_max_repeat = autocorr_in_params.period_max_repeat;
+        const auto syncseq_max_repeat = (std::max)(autocorr_in_params.period_max_repeat, syncseq_min_repeat);
 
         uint64_t stream_min_period =
             (std::min)(
@@ -550,11 +550,10 @@ void calculate_syncseq_autocorrelation(
             (std::min)(
                 // If not defined, then minimal "to" period is at least 2 synchro sequence bit length, otherwise - not less than synchro sequence bit length + 1.
                 // But always not greater than a bit stream length.
-                uint64_t(autocorr_io_params.max_period != math::uint32_max ? (std::max)(syncseq_bit_size + 1, autocorr_io_params.min_period) : stream_bit_size * 2),
+                uint64_t(autocorr_io_params.max_period != math::uint32_max ? (std::max)(syncseq_bit_size + 1, autocorr_io_params.max_period) : stream_bit_size * 2),
                 stream_bit_size - 1);
 
-        assert(stream_max_period >= stream_min_period);
-        assert(syncseq_max_repeat >= syncseq_min_repeat);
+        stream_max_period = (std::max)(stream_max_period, stream_min_period);
 
         // recalculated for min/max periods for a synchro sequence min repeat
         const uint64_t stream_max_period_for_min_repeat = (stream_bit_size - 1) / (syncseq_min_repeat ? syncseq_min_repeat : 1);
@@ -572,14 +571,14 @@ void calculate_syncseq_autocorrelation(
         }
 
         // calculate maximum storage size for autocorrelation mean values to cancel calculations, rounding to greater
-        const uint64_t autocorr_max_mean_arr_max_size = (autocorr_in_params.max_corr_mean_bytes + sizeof(autocorr_max_mean_arr[0]) - 1) / sizeof(autocorr_max_mean_arr[0]);
+        const uint64_t autocorr_max_mean_deq_max_size = (autocorr_in_params.max_corr_mean_bytes + sizeof(autocorr_max_mean_deq[0]) - 1) / sizeof(autocorr_max_mean_deq[0]);
 
         // x 10 to reserve space for at least 10 first results greater or equal than minimal correlation mean value
         const uint64_t autocorr_reserve_mean_arr_max_size = (std::min)(
-            autocorr_max_mean_arr_max_size,
+            autocorr_max_mean_deq_max_size,
             (stream_bit_size - 1) * (autocorr_in_params.corr_min_value ? 10 : 1));
 
-        autocorr_max_mean_arr.reserve(size_t(autocorr_reserve_mean_arr_max_size));
+        //autocorr_max_mean_deq.reserve(size_t(autocorr_reserve_mean_arr_max_size));
 
         struct AutocorrOffsetMean
         {
@@ -638,12 +637,12 @@ void calculate_syncseq_autocorrelation(
                     const AutocorrOffsetMean & autocorr_period_mean = autocorr_offset_mean_arr[i];
 
                     if (autocorr_period_mean.num_corr > 1 && autocorr_period_mean.corr_mean >= autocorr_in_params.corr_min_value) {
-                        autocorr_max_mean_arr.push_back(SyncseqAutocorr{
+                        autocorr_max_mean_deq.push_back(SyncseqAutocorr{
                             uint32_t(autocorr_period_mean.offset), uint32_t(period), autocorr_period_mean.num_corr, autocorr_period_mean.corr_mean, 0
                         });
 
-                        used_corr_mean_bytes = (std::max)(used_corr_mean_bytes, autocorr_max_mean_arr.size() * sizeof(autocorr_max_mean_arr[0]));
-                        accum_corr_mean_bytes = (std::max)(accum_corr_mean_bytes, autocorr_max_mean_arr.size() * sizeof(autocorr_max_mean_arr[0]));
+                        used_corr_mean_bytes = (std::max)(used_corr_mean_bytes, autocorr_max_mean_deq.size() * sizeof(autocorr_max_mean_deq[0]));
+                        accum_corr_mean_bytes = (std::max)(accum_corr_mean_bytes, autocorr_max_mean_deq.size() * sizeof(autocorr_max_mean_deq[0]));
                     }
 
                     min_corr_mean_value = (std::min)(min_corr_mean_value, autocorr_period_mean.corr_mean);
@@ -665,12 +664,12 @@ void calculate_syncseq_autocorrelation(
                 }
 
                 if (max_autocorr_offset_mean.num_corr > 1 && max_autocorr_offset_mean.corr_mean) { // ignore single correlation values
-                    autocorr_max_mean_arr.push_back(SyncseqAutocorr{
+                    autocorr_max_mean_deq.push_back(SyncseqAutocorr{
                         uint32_t(max_autocorr_offset_mean.offset), uint32_t(period), max_autocorr_offset_mean.num_corr, max_autocorr_offset_mean.corr_mean, 0
                     });
 
-                    used_corr_mean_bytes = (std::max)(used_corr_mean_bytes, autocorr_max_mean_arr.size() * sizeof(autocorr_max_mean_arr[0]));
-                    accum_corr_mean_bytes = (std::max)(accum_corr_mean_bytes, autocorr_max_mean_arr.size() * sizeof(autocorr_max_mean_arr[0]));
+                    used_corr_mean_bytes = (std::max)(used_corr_mean_bytes, autocorr_max_mean_deq.size() * sizeof(autocorr_max_mean_deq[0]));
+                    accum_corr_mean_bytes = (std::max)(accum_corr_mean_bytes, autocorr_max_mean_deq.size() * sizeof(autocorr_max_mean_deq[0]));
                 }
             }
 
@@ -751,11 +750,11 @@ void calculate_syncseq_autocorrelation(
         //     1.0082 = 0.823 + 0.831 * (6 - 1) / (17 - 1)
         //
 
-        const auto autocorr_max_mean_arr_size = autocorr_max_mean_arr.size();
+        const auto autocorr_max_mean_deq_size = autocorr_max_mean_deq.size();
 
-        if (autocorr_max_mean_arr_size) {
-            auto begin_it = autocorr_max_mean_arr.begin();
-            auto end_it = autocorr_max_mean_arr.end();
+        if (autocorr_max_mean_deq_size) {
+            auto begin_it = autocorr_max_mean_deq.begin();
+            auto end_it = autocorr_max_mean_deq.end();
 
             // sort by offset
 
@@ -813,7 +812,7 @@ void calculate_syncseq_autocorrelation(
                 }
             }
 
-            auto & autocorr_max_mean_last_ref = autocorr_max_mean_arr.back();
+            auto & autocorr_max_mean_last_ref = autocorr_max_mean_deq.back();
 
             autocorr_max_mean_last_ref.corr_mean_sum = autocorr_max_mean_last_ref.corr_mean;
 
@@ -826,8 +825,8 @@ void calculate_syncseq_autocorrelation(
 
             // calculate autocorrelation mean sum, O(N) time complexity
 
-            auto begin_rit = autocorr_max_mean_arr.rbegin();
-            auto end_rit = autocorr_max_mean_arr.rend();
+            auto begin_rit = autocorr_max_mean_deq.rbegin();
+            auto end_rit = autocorr_max_mean_deq.rend();
 
             auto first_rit = begin_rit;
 
@@ -911,7 +910,7 @@ void calculate_syncseq_autocorrelation(
 //
 void calculate_syncseq_autocorrelation_false_positive_stats(
     const std::vector<float> &              autocorr_values_arr,
-    const std::vector<SyncseqAutocorr> *    autocorr_max_mean_arr_ptr,
+    const std::deque<SyncseqAutocorr> *     autocorr_max_mean_deq_ptr,
     const std::vector<uint32_t> &           true_positions_index_arr,
     size_t &                                true_num,
     size_t                                  stat_arrs_size,
@@ -1059,14 +1058,14 @@ void calculate_syncseq_autocorrelation_false_positive_stats(
     }
 
     // the second and third phase algorithm output analysis
-    if (autocorr_max_mean_arr_ptr && false_in_true_max_corr_mean_arr_ptr) {
-        const auto & autocorr_max_mean_arr = *autocorr_max_mean_arr_ptr;
+    if (autocorr_max_mean_deq_ptr && false_in_true_max_corr_mean_arr_ptr) {
+        const auto & autocorr_max_mean_deq = *autocorr_max_mean_deq_ptr;
         auto & false_in_true_max_corr_mean_arr = *false_in_true_max_corr_mean_arr_ptr;
 
-        false_in_true_max_corr_mean_arr.resize((std::min)(stat_arrs_size, autocorr_max_mean_arr.size()));
+        false_in_true_max_corr_mean_arr.resize((std::min)(stat_arrs_size, autocorr_max_mean_deq.size()));
 
         for (size_t j = 0; j < false_in_true_max_corr_mean_arr.size(); j++) {
-            auto & autocorr_mean_ref = autocorr_max_mean_arr[j];
+            auto & autocorr_mean_ref = autocorr_max_mean_deq[j];
             auto & false_in_true_max_corr_mean_ref = false_in_true_max_corr_mean_arr[j];
 
             false_in_true_max_corr_mean_ref = SyncseqAutocorrStats{ autocorr_mean_ref, false };

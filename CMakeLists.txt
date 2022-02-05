@@ -169,6 +169,9 @@ tkl_exclude_paths_from_path_list(. common_sources "${common_sources}" "/tests/" 
 # exclude by pattern
 tkl_exclude_paths_from_path_list(. common_sources "${common_sources}" "/~" 0)
 
+# exclude .bak files
+tkl_exclude_paths_from_path_list(. common_sources "${common_sources}" ".bak" 0)
+
 # generate standalone sources groups
 foreach(target ${ALL_EXE_TARGETS})
   file(GLOB_RECURSE sources_${target} src/${target}/*.cpp src/${target}/*.h*)
@@ -186,6 +189,11 @@ foreach(target ${ALL_EXE_TARGETS})
   tkl_exclude_paths_from_path_list(. sources_${target} "${sources_${target}}" "/~" 0)
   tkl_exclude_paths_from_path_list(. resources_${target} "${resources_${target}}" "/~" 0)
   tkl_exclude_paths_from_path_list(. common_private_headers "${common_private_headers}" "/~" 0)
+
+  # exclude .bak files
+  tkl_exclude_paths_from_path_list(. sources_${target} "${sources_${target}}" ".bak" 0)
+  tkl_exclude_paths_from_path_list(. resources_${target} "${resources_${target}}" ".bak" 0)
+  tkl_exclude_paths_from_path_list(. common_private_headers "${common_private_headers}" ".bak" 0)
 endforeach()
 
 #file(GLOB_RECURSE headers_test src/tests/*.h*)
@@ -193,10 +201,16 @@ endforeach()
 # exclude by pattern
 tkl_exclude_paths_from_path_list(. headers_test "${headers_test}" "/~" 0)
 
+# exclude .bak files
+tkl_exclude_paths_from_path_list(. headers_test "${headers_test}" ".bak" 0)
+
 #file(GLOB_RECURSE sources_test src/tests/*.cpp ${headers_test})
 #
 ## exclude by pattern
 #tkl_exclude_paths_from_path_list(. sources_test "${sources_test}" "/~" 0)
+#
+## exclude .bak files
+#tkl_exclude_paths_from_path_list(. sources_test "${sources_test}" ".bak" 0)
 
 # You can use set(sources src/main.cpp) etc if you don't want to
 # use globbing to find files automatically.

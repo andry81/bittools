@@ -96,7 +96,13 @@ inline void memcpy_bitwise64(uint8_t * to_padded_int64_buf, uint64_t to_first_bi
             const uint64_t bit_size_remain = bit_size - bit_offset;
             const uint32_t byte_size_remain = uint32_t(bit_size_remain / 8);
 
-            memcpy(to_padded_int64_buf + to_byte_offset, from_padded_int64_buf + from_byte_offset, byte_size_remain + 1);
+            if (byte_size_remain + 1 > 8) {
+                memcpy(to_padded_int64_buf + to_byte_offset, from_padded_int64_buf + from_byte_offset, byte_size_remain + 1);
+            }
+            // optimization
+            else {
+                *(uint64_t *)to_padded_int64_buf[to_byte_offset] = *(uint64_t *)from_padded_int64_buf[from_byte_offset];
+            }
 
             break;
         }

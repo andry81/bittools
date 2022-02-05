@@ -16,14 +16,25 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
     <Flags>:
       /stream-byte-size <size>
       /s <size>
-        Stream size in bytes to search for synchro sequence (must be greater
-        than 4 bytes (32 bits) and less than 2^32 bytes).
+        Stream size in bytes to process.
+
+        In case of `sync` mode must be greater than 4 bytes (32 bits) and less
+        than 2^32 bytes.
 
         CAUTION:
-          Must be enough to fit the real stream period, otherwise the
+          To sync must be enough to fit the real stream period, otherwise the
           certainty of autocorrelation mean values would be not enough and the
           calculated offset and period will be incorrect independently to the
           input noise.
+
+      /stream-bit-size <size>
+      /si <size>
+        Stream size in bits to process. The same as `/stream-byte-size` but as
+        number of bits.
+
+        CAUTION:
+          If a value is not a multiple of a byte, then the stream remainder
+          may left unprocessed.
 
       /stream-min-period <value>
       /spmin <value>
@@ -40,6 +51,8 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
           certainty of autocorrelation mean values would be not enough and the
           calculated offset and period will be incorrect independently to the
           input noise.
+
+        Has priority over `/stream-max-period` option.
 
       /stream-max-period <value>
       /spmax <value>
@@ -85,6 +98,8 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
           If the synchro sequence width is used instead of a value,
           then the repeat option value should be enough to not result in a
           false positive compare.
+
+        Has priority over `/syncseq-max-repeat` option.
 
       /syncseq-max-repeat <value>
       /rmax <value>
@@ -248,6 +263,7 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
     * Can work in the `sync` mode to use an externally generated stream
       variant as the input.
 
-    * Can work in the `gen-sync` mode, where does execute both stages the
-      generation and the synchronization, and all the intermediate operations
-      does use the memory instead of files to produce an output.
+    * (Not implemented) Can work in the `gen-sync` mode, where does execute
+      both stages the generation and the synchronization, and all the
+      intermediate operations does use the memory instead of files to produce
+      an output.

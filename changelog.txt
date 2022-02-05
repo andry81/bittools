@@ -1,6 +1,14 @@
+2022.02.05:
+* fixed: src/bitsync: accidental uninitialized bits remainder before the first synchro sequence insert in the `/insert-output-syncseq` option implementation
+* fixed: src/bitsync: Time to time a bad alloc raises because of allocation of too big contiguous memory piece. The related to the error, array container is replaced by an deque.
+* fixed: src/bitsync: command line checks fixup
+* fixed: CMakeLists.txt: missed to exclude `*.bak` files
+* new: src/bitsync: `/stream-bit-size`, `/si` to define stream length in bits instead of bytes (the output is still in bytes, so the last byte bits remainder may not be processed)
+* changed: src/bitsync: minor improvements
+
 2022.02.04:
 * fixed: src/bitsync: minor fixup
-* new: src/bitsync: The `/insert-output-syncseq`, `/outss` options to insert a synchro sequence into the output. Can be used together with the `/gen-input-noise`, `/inn` options to output a bit stream with inserted arbitrary synchro sequnce.
+* new: src/bitsync: The `/insert-output-syncseq`, `/outss` options to insert a synchro sequence into the output. Can be used together with the `/gen-input-noise`, `/inn` options to output a bit stream with inserted arbitrary synchro sequence.
 * new: deploy/bitstreams: bit stream examples + readme file
 * changed: src/bitsync, deploy/scripts: removed `bits_per_baud` from the command line in case of `sync` mode
 * changed: src/bitsync: minor improvements

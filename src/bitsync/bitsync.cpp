@@ -45,6 +45,7 @@ Options::Options()
     //  * all max values based on a stream bit length
     //
     stream_byte_size                = 0;
+    stream_bit_size                 = 0;
     stream_min_period               = math::uint32_max;
     stream_max_period               = math::uint32_max;
     syncseq_bit_size                = 0;
@@ -247,10 +248,14 @@ inline void write_syncseq(const tackle::file_handle<TCHAR> & file_out_handle, ui
         buf_out[i] = 0; // zeroing padding bytes
     }
 
-    uint32_t from_byte_offset = size_t(offset / 8);
-    
-    if (from_byte_offset) {
-        memcpy(buf_out, buf_in, from_byte_offset);
+    uint32_t byte_size_before_offset = size_t(offset + 7) / 8; // including the reminder
+
+    if (byte_size_before_offset > 8) {
+        memcpy(buf_out, buf_in, byte_size_before_offset);
+    }
+    // optimization
+    else {
+        *(uint64_t *)buf_out[0] = *(uint64_t *)buf_in[0];
     }
 
     uint64_t from_bit_offset = offset;
@@ -536,17 +541,17 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
     // calculate synchro sequence autocorrelation values and autocorrelation mean values
 
     std::vector<float> autocorr_values_arr;
-    std::vector<SyncseqAutocorr> autocorr_max_mean_arr;
+    std::deque<SyncseqAutocorr> autocorr_max_mean_deq;
 
     calculate_syncseq_autocorrelation(
         data.autocorr_in_params, data.autocorr_io_params,
         buf,
         autocorr_values_arr,
-        !g_flags.disable_calc_autocorr_mean ? &autocorr_max_mean_arr : nullptr);
+        !g_flags.disable_calc_autocorr_mean ? &autocorr_max_mean_deq : nullptr);
 
     if (!g_flags.disable_calc_autocorr_mean) {
-        if (!autocorr_max_mean_arr.empty()) {
-            for (const auto & autocorr_max_mean_ref : autocorr_max_mean_arr) {
+        if (!autocorr_max_mean_deq.empty()) {
+            for (const auto & autocorr_max_mean_ref : autocorr_max_mean_deq) {
                 // use only first periodic value
                 if (autocorr_max_mean_ref.period) {
                     data.syncseq_bit_offset = autocorr_max_mean_ref.offset;
@@ -611,7 +616,7 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
     //
 
     // Example of expressions for the watch window in a debugger to represent statistical validity and certainty of the
-    // correlation values output without mean search (first phase of the algorithm before the `autocorr_max_mean_arr` calculation):
+    // correlation values output without mean search (first phase of the algorithm before the `autocorr_max_mean_deq` calculation):
     //
     //  true_num                                    // quantity of found true positions, just for a self test
     //
@@ -627,9 +632,9 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
     //                                              //
 
     // Example of expressions for the watch window in a debugger to represent statistical validity and certainty of the
-    // correlation mean values output (second phase of the algorithm with the `autocorr_max_mean_arr` calculation):
+    // correlation mean values output (second phase of the algorithm with the `autocorr_max_mean_deq` calculation):
     //
-    //  &autocorr_max_mean_arr[0],30                // Correlation mean values together with particular number of correlation values used to calculate a mean value and
+    //  &autocorr_max_mean_deq[0],30                // Correlation mean values together with particular number of correlation values used to calculate a mean value and
     //                                              // bit stream offset and period, sorted from correlation mean maximum value to minimum.
     //
     //  &false_in_true_max_corr_mean_arr[0],30      // false positive correlation values within true positions, sorted from correlation mean maximum value to minimum
@@ -664,7 +669,7 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
     std::vector<SyncseqAutocorrStats> false_in_true_max_corr_mean_arr;
 
     calculate_syncseq_autocorrelation_false_positive_stats(
-        autocorr_values_arr, !g_flags.disable_calc_autocorr_mean ? &autocorr_max_mean_arr : nullptr,
+        autocorr_values_arr, !g_flags.disable_calc_autocorr_mean ? &autocorr_max_mean_deq : nullptr,
         true_positions_index_arr,
         true_num, 30,
         false_max_corr_arr, false_max_index_arr, true_max_corr_arr, true_max_index_arr,

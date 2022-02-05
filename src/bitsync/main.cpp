@@ -1,10 +1,15 @@
 #include "main.hpp"
 
+#include <tacklelib/utility/preprocessor.hpp>
+
+#include <inttypes.h>
+
 
 #define DEFAULT_SYNCSEQ_MAXIMAL_REPEAT_PERIOD   16
 
 const TCHAR * g_flags_to_parse_arr[] = {
     _T("/stream-byte-size"), _T("/s"),
+    _T("/stream-bit-size"), _T("/si"),
     _T("/syncseq-bit-size"), _T("/q"),
     _T("/syncseq-int32"), _T("/k"),
     _T("/syncseq-min-repeat"), _T("/r"),
@@ -83,6 +88,18 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
             if (is_arg_in_filter(start_arg, include_filter_arr)) {
                 options.stream_byte_size = _ttoi(arg);
+                return 1;
+            }
+            return 0;
+        }
+        else error = invalid_format_flag(start_arg);
+        return 2;
+    }
+    if (is_arg_equal_to(arg, _T("/stream-bit-size")) || is_arg_equal_to(arg, _T("/si"))) {
+        arg_offset += 1;
+        if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
+            if (is_arg_in_filter(start_arg, include_filter_arr)) {
+                options.stream_bit_size = _ttoi64(arg);
                 return 1;
             }
             return 0;
@@ -406,20 +423,27 @@ int _tmain(int argc, const TCHAR * argv[])
                 } break;
                 }
 
+                if (g_options.stream_byte_size && g_options.stream_bit_size) {
+                    _ftprintf(stderr, _T("error: stream_byte_size and stream_bit_size options are mixed.\n"));
+                    return 255;
+                }
+
                 switch (mode) {
                 case Mode_Gen:
                 case Mode_Sync:
                 case Mode_Gen_Sync:
                 {
-                    if (g_options.stream_byte_size && g_options.stream_byte_size <= 4) {
-                        _ftprintf(stderr, _T("error: stream_byte_size must be greater than 4 bytes\n"));
-                        return 255;
-                    }
-
                     // safety check by 2GB maximum
                     if (g_options.stream_byte_size >= math::uint32_max / 2) {
                         _ftprintf(stderr, _T("error: stream_byte_size is too big: stream_byte_size=%u\n"),
                             g_options.stream_byte_size);
+                        return 255;
+                    }
+
+                    // safety check by 2GB maximum
+                    if (g_options.stream_bit_size >= uint64_t(math::uint32_max) * 8 / 2) {
+                        _ftprintf(stderr, _T("error: stream_bit_size is too big: stream_bit_size=%") _T(PRIu64) _T("\n"),
+                            g_options.stream_bit_size);
                         return 255;
                     }
                 } break;
@@ -442,18 +466,6 @@ int _tmain(int argc, const TCHAR * argv[])
                     if (g_options.stream_min_period != math::uint32_max && g_options.stream_max_period < g_options.stream_min_period) {
                         _ftprintf(stderr, _T("error: stream_min_period must be not greater than stream_max_period: stream_min_period=%u stream_max_period=%u\n"),
                             g_options.stream_min_period, g_options.stream_max_period);
-                        return 255;
-                    }
-
-                    if (g_options.stream_min_period != math::uint32_max && g_options.stream_min_period >= g_options.stream_byte_size * 8) {
-                        _ftprintf(stderr, _T("error: stream_min_period must be less than stream_byte_size: stream_min_period=%u stream_byte_size=%u\n"),
-                            g_options.stream_min_period, g_options.stream_byte_size);
-                        return 255;
-                    }
-
-                    if (g_options.stream_max_period != math::uint32_max && g_options.stream_max_period >= g_options.stream_byte_size * 8) {
-                        _ftprintf(stderr, _T("error: stream_max_period must be less than stream_byte_size: stream_max_period=%u stream_byte_size=%u\n"),
-                            g_options.stream_max_period, g_options.stream_byte_size);
                         return 255;
                     }
 
@@ -585,9 +597,44 @@ int _tmain(int argc, const TCHAR * argv[])
 
                 const tackle::file_handle<TCHAR> file_in_handle = utility::open_file(g_options.input_file, _T("rb"), utility::SharedAccess_DenyWrite);
 
+                if (g_options.stream_bit_size) {
+                    g_options.stream_byte_size = uint32_t((g_options.stream_bit_size + 7) / 8);
+                }
+
                 const uint64_t stream_byte_size = uint32_t((std::min)(utility::get_file_size(file_in_handle), uint64_t(math::uint32_max))); // CAUTION: read only first 4GB
                 if (!g_options.stream_byte_size || stream_byte_size < g_options.stream_byte_size) {
                     g_options.stream_byte_size = uint32_t(stream_byte_size);
+                    g_options.stream_bit_size = uint32_t(g_options.stream_byte_size) * 8;
+                }
+
+                switch (mode) {
+                case Mode_Gen:
+                case Mode_Sync:
+                case Mode_Gen_Sync:
+                {
+                    if (g_options.stream_byte_size && g_options.stream_byte_size <= 4) {
+                        _ftprintf(stderr, _T("error: stream_byte_size must be greater than 4 bytes\n"));
+                        return 255;
+                    }
+                } break;
+                }
+
+                switch (mode) {
+                case Mode_Sync:
+                case Mode_Gen_Sync:
+                {
+                    if (g_options.stream_min_period != math::uint32_max && g_options.stream_min_period >= g_options.stream_byte_size * 8) {
+                        _ftprintf(stderr, _T("error: stream_min_period must be less than stream_byte_size: stream_min_period=%u stream_byte_size=%u\n"),
+                            g_options.stream_min_period, g_options.stream_byte_size);
+                        return 255;
+                    }
+
+                    if (g_options.stream_max_period != math::uint32_max && g_options.stream_max_period >= g_options.stream_byte_size * 8) {
+                        _ftprintf(stderr, _T("error: stream_max_period must be less than stream_byte_size: stream_max_period=%u stream_byte_size=%u\n"),
+                            g_options.stream_max_period, g_options.stream_byte_size);
+                        return 255;
+                    }
+                } break;
                 }
 
                 switch (mode) {
@@ -836,11 +883,11 @@ int _tmain(int argc, const TCHAR * argv[])
                         ret = 0;
 
                         const bool is_offset_uncertain =
-                            sync_data.autocorr_io_params.accum_corr_mean_quit || g_flags.disable_calc_autocorr_mean || !g_options.autocorr_min;
+                            sync_data.autocorr_io_params.accum_corr_mean_quit || g_flags.disable_calc_autocorr_mean || 0.5 >= g_options.autocorr_min;
 
                         const bool is_period_uncertain =
                             sync_data.stream_params.stream_width != math::uint32_max &&
-                            (sync_data.autocorr_io_params.accum_corr_mean_quit || g_flags.disable_calc_autocorr_mean || !g_options.autocorr_min);
+                            (sync_data.autocorr_io_params.accum_corr_mean_quit || g_flags.disable_calc_autocorr_mean || 0.5 >= g_options.autocorr_min);
 
                         const std::string offset_prefix_warn_str = is_offset_uncertain ? "[!] " : "    ";
                         std::string offset_suffix_msg_str = is_offset_uncertain ? " (UNCERTAIN" : "";

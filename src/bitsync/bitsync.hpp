@@ -70,6 +70,7 @@ struct Options
 
     std::tstring            mode;
     uint32_t                stream_byte_size;
+    uint64_t                stream_bit_size;
     uint32_t                stream_min_period;
     uint32_t                stream_max_period;
     uint32_t                syncseq_bit_size;

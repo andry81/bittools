@@ -3,6 +3,7 @@
 #include "common.hpp"
 
 #include <vector>
+#include <deque>
 #include <cstdlib>
 
 struct AutocorrInParams
@@ -82,11 +83,11 @@ void calculate_syncseq_autocorrelation(
     AutocorrInOutParams &                   autocorr_io_params,
     uint8_t *                               stream_buf,                         // buffer must be padded to a multiple of 4 bytes plus 4 bytes reminder to be able to read and shift the last 32-bit block as 64-bit block
     std::vector<float> &                    autocorr_values_arr,                // autocorrelation values per each stream bit within synchro sequence bit size
-    std::vector<SyncseqAutocorr> *          autocorr_max_mean_arr_ptr);         // resulted synchro sequence offset and period variants sorted from highest autocorrelation max mean (max average for different offsets with the same period) value
+    std::deque<SyncseqAutocorr> *           autocorr_max_mean_deq_ptr);         // resulted synchro sequence offset and period variants sorted from highest autocorrelation max mean (max average for different offsets with the same period) value
 
 void calculate_syncseq_autocorrelation_false_positive_stats(
     const std::vector<float> &              autocorr_values_arr,                // calculated autocorrelation values in range (0; 1]
-    const std::vector<SyncseqAutocorr> *    autocorr_max_mean_arr_ptr,          // calculated autocorrelation max mean values in range (0; 1], sorted from correlation mean maximum value to minimum
+    const std::deque<SyncseqAutocorr> *     autocorr_max_mean_deq_ptr,          // calculated autocorrelation max mean values in range (0; 1], sorted from correlation mean maximum value to minimum
     const std::vector<uint32_t> &           true_positions_index_arr,           // true positions (indexes) in the stream
     size_t &                                true_num,                           // number of true positions
     size_t                                  stat_arrs_size,                     // sizes of all output statistic arrays
