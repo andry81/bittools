@@ -1,4 +1,7 @@
 2022.02.05:
+* fixed: src/bitsync/autocorrelation.cpp: Wolfram Alpha details fix
+
+2022.02.05:
 * fixed: src/bitsync: accidental uninitialized bits remainder before the first synchro sequence insert in the `/insert-output-syncseq` option implementation
 * fixed: src/bitsync: Time to time a bad alloc raises because of allocation of too big contiguous memory piece. The related to the error, array container is replaced by an deque.
 * fixed: src/bitsync: command line checks fixup

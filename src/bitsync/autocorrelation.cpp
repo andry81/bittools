@@ -186,7 +186,7 @@
 //              a, b, c, d  - real numbers
 //              sgn(x)      - sign of x
 //
-//        * `(x + u) * u + (y * v) * y <= max((x + u) ^ 2 + v ^ 2, (y + v) ^ 2 + u ^ 2), x > 0, y > 0, u >= 1, v >= 1`:
+//        * `(x + u) * u + (y + v) * y <= max((x + u) ^ 2 + v ^ 2, (y + v) ^ 2 + u ^ 2), x > 0, y > 0, u >= 1, v >= 1`:
 //
 //          https://www.wolframalpha.com/input/?i=%28x+%2B+u%29+*+u+%2B+%28y+%2B+v%29+*+y+<%3D+max%28%28x+%2B+u%29+%5E+2+%2B+v+%5E+2%2C+%28y+%2B+v%29+%5E+2+%2B+u+%5E+2%29%2C+x+>+0%2C+y+>+0%2C+u+>%3D+1%2C+v+>%3D+1
 //
@@ -203,7 +203,7 @@
 //
 //        * `Solve [(x + z) * z + (y + w) * y <= max((x + z) ^ 2 + w ^ 2, (y + w) ^ 2 + z ^ 2), x > 0, y > 0, z >= 1, w >= 1]`:
 //
-//          https://www.wolframalpha.com/input/?i=Solve+%5B%28x+%2B+z%29+*+z+%2B+%28y+*+w%29+*+y+<%3D+max%28%28x+%2B+z%29+%5E+2+%2B+w+%5E+2%2C+%28y+%2B+w%29+%5E+2+%2B+z+%5E+2%29%2C+x+>+0%2C+y+>+0%2C+z+>%3D+1%2C+w+>%3D+1%5D
+//          https://www.wolframalpha.com/input?i=Solve+%5B%28x+%2B+z%29+*+z+%2B+%28y+%2B+w%29+*+y+<%3D+max%28%28x+%2B+z%29+%5E+2+%2B+w+%5E+2%2C+%28y+%2B+w%29+%5E+2+%2B+z+%5E+2%29%2C+x+>+0%2C+y+>+0%2C+z+>%3D+1%2C+w+>%3D+1%5D
 //
 //          Solution (most simple):
 //
