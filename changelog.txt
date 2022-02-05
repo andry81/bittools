@@ -1,4 +1,8 @@
 2022.02.05:
+* fixed: src/bitsync: missed to zeroing a buffer last byte bits remainder
+* changed: src/bitsync: `memcpy_bitwise64` function moved into `tacklelib` library
+
+2022.02.05:
 * fixed: src/bitsync/autocorrelation.cpp: Wolfram Alpha details fix
 
 2022.02.05:

@@ -3,6 +3,8 @@
 
 #include "bitsync.hpp"
 
+#include <tacklelib/utility/memory.hpp>
+
 #include <algorithm>
 
 #include <stdlib.h>
@@ -211,6 +213,7 @@ inline void generate_noise(const BasicData & basic_data, StreamParams & stream_p
 
 inline void write_syncseq(const tackle::file_handle<TCHAR> & file_out_handle, uint8_t * buf_in, size_t size, uint32_t syncseq_int32, uint32_t syncseq_bit_size, uint32_t offset, uint32_t period)
 {
+    assert(size);
     assert(syncseq_bit_size);
     assert(period);
 
@@ -242,10 +245,10 @@ inline void write_syncseq(const tackle::file_handle<TCHAR> & file_out_handle, ui
 
     uint8_t * buf_out = inserted_write_buf.get();
 
-    *(uint64_t *)buf_out = 0; // zeroing first offset
-
-    for (uint64_t i = inserted_stream_byte_size; i < padded_inserted_stream_byte_size; i++) {
-        buf_out[i] = 0; // zeroing padding bytes
+    // zeroing last byte remainder + padding bytes
+    assert(inserted_stream_byte_size);
+    for (uint64_t i = inserted_stream_byte_size - 1; i < padded_inserted_stream_byte_size; i++) {
+        buf_out[i] = 0;
     }
 
     uint32_t byte_size_before_offset = size_t(offset + 7) / 8; // including the reminder
@@ -263,12 +266,12 @@ inline void write_syncseq(const tackle::file_handle<TCHAR> & file_out_handle, ui
 
     if (syncseq_bit_size < period) {
         while (from_bit_offset < stream_bit_size && to_bit_offset < inserted_stream_bit_size) {
-            memcpy_bitwise64(buf_out, to_bit_offset, (uint8_t*)&syncseq_bytes, 0, syncseq_bit_size);
+            utility::memcpy_bitwise64(buf_out, to_bit_offset, (uint8_t*)&syncseq_bytes, 0, syncseq_bit_size);
 
             const uint64_t bit_size_to_copy = (std::min)(stream_bit_size - from_bit_offset, uint64_t(period - syncseq_bit_size));
 
             if (bit_size_to_copy) {
-                memcpy_bitwise64(buf_out, to_bit_offset + syncseq_bit_size, buf_in, from_bit_offset, bit_size_to_copy);
+                utility::memcpy_bitwise64(buf_out, to_bit_offset + syncseq_bit_size, buf_in, from_bit_offset, bit_size_to_copy);
             }
 
             from_bit_offset += period - syncseq_bit_size;
@@ -277,7 +280,7 @@ inline void write_syncseq(const tackle::file_handle<TCHAR> & file_out_handle, ui
     }
     else {
         while (to_bit_offset < inserted_stream_bit_size) {
-            memcpy_bitwise64(buf_out, to_bit_offset, (uint8_t*)&syncseq_bytes, 0, syncseq_bit_size);
+            utility::memcpy_bitwise64(buf_out, to_bit_offset, (uint8_t*)&syncseq_bytes, 0, syncseq_bit_size);
 
             to_bit_offset += period;
         }
@@ -307,10 +310,9 @@ void generate_stream(GenData & data, tackle::file_reader_state & state, uint8_t 
     //
     const uint32_t padded_stream_byte_size = data.stream_params.padded_stream_byte_size;
 
-    if (padded_stream_byte_size > size) {
-        for (uint32_t i = 0; i < padded_stream_byte_size - size; i++) {
-            buf[size + i] = 0; // zeroing padding bytes
-        }
+    // zeroing padding bytes
+    for (uint32_t i = size; i < padded_stream_byte_size; i++) {
+        buf[i] = 0;
     }
 
     if (data.basic_data.options_ptr->gen_input_noise_bit_block_size) {
@@ -427,10 +429,9 @@ inline void pipe_stream(PipeData & data, tackle::file_reader_state & state, uint
     //
     const uint32_t padded_stream_byte_size = data.stream_params.padded_stream_byte_size;
 
-    if (padded_stream_byte_size > size) {
-        for (uint32_t i = 0; i < padded_stream_byte_size - size; i++) {
-            buf[size + i] = 0; // zeroing padding bytes
-        }
+    // zeroing padding bytes
+    for (uint32_t i = size; i < padded_stream_byte_size; i++) {
+        buf[i] = 0;
     }
 
     if (data.basic_data.options_ptr->gen_input_noise_bit_block_size) {
@@ -512,10 +513,9 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
     //
     const uint32_t padded_stream_byte_size = data.stream_params.padded_stream_byte_size;
 
-    if (padded_stream_byte_size > size) {
-        for (uint32_t i = 0; i < padded_stream_byte_size - size; i++) {
-            buf[size + i] = 0; // zeroing padding bytes
-        }
+    // zeroing padding bytes
+    for (uint32_t i = size; i < padded_stream_byte_size; i++) {
+        buf[i] = 0;
     }
 
     if (data.basic_data.options_ptr->gen_input_noise_bit_block_size) {
