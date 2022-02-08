@@ -506,6 +506,7 @@ int _tmain(int argc, const TCHAR * argv[])
                         return 255;
                     }
 
+                    // /r vs /rmax
                     if (g_options.syncseq_min_repeat != math::uint32_max && g_options.syncseq_max_repeat != math::uint32_max && g_options.syncseq_max_repeat < g_options.syncseq_min_repeat) {
                         _ftprintf(stderr, _T("error: syncseq_min_repeat must be not greater than syncseq_max_repeat: syncseq_min_repeat=%u syncseq_max_repeat=%u\n"),
                             g_options.syncseq_min_repeat, g_options.syncseq_max_repeat);
@@ -612,8 +613,8 @@ int _tmain(int argc, const TCHAR * argv[])
                 case Mode_Sync:
                 case Mode_Gen_Sync:
                 {
-                    if (g_options.stream_byte_size && g_options.stream_byte_size <= 4) {
-                        _ftprintf(stderr, _T("error: stream_byte_size must be greater than 4 bytes\n"));
+                    if (g_options.stream_bit_size && g_options.stream_bit_size <= 32) {
+                        _ftprintf(stderr, _T("error: stream_bit_size must be greater than 32 bits\n"));
                         return 255;
                     }
                 } break;
@@ -623,15 +624,24 @@ int _tmain(int argc, const TCHAR * argv[])
                 case Mode_Sync:
                 case Mode_Gen_Sync:
                 {
-                    if (g_options.stream_min_period != math::uint32_max && g_options.stream_min_period >= g_options.stream_byte_size * 8) {
-                        _ftprintf(stderr, _T("error: stream_min_period must be less than stream_byte_size: stream_min_period=%u stream_byte_size=%u\n"),
-                            g_options.stream_min_period, g_options.stream_byte_size);
+                    // /spmin vs /si
+                    if (g_options.stream_min_period != math::uint32_max && g_options.stream_min_period >= g_options.stream_bit_size) {
+                        _ftprintf(stderr, _T("error: stream_min_period must be less than stream_byte_size: stream_min_period=%u stream_bit_size=%") _T(PRIu64) _T("\n"),
+                            g_options.stream_min_period, g_options.stream_bit_size);
                         return 255;
                     }
 
-                    if (g_options.stream_max_period != math::uint32_max && g_options.stream_max_period >= g_options.stream_byte_size * 8) {
-                        _ftprintf(stderr, _T("error: stream_max_period must be less than stream_byte_size: stream_max_period=%u stream_byte_size=%u\n"),
-                            g_options.stream_max_period, g_options.stream_byte_size);
+                    // /spmax vs /si
+                    if (g_options.stream_max_period != math::uint32_max && g_options.stream_max_period >= g_options.stream_bit_size) {
+                        _ftprintf(stderr, _T("error: stream_max_period must be less than stream_byte_size: stream_max_period=%u stream_bit_size=%") _T(PRIu64) _T("\n"),
+                            g_options.stream_max_period, g_options.stream_bit_size);
+                        return 255;
+                    }
+
+                    // /r + /spmin vs /si
+                    if (g_options.syncseq_min_repeat != math::uint32_max && g_options.stream_min_period != math::uint32_max && g_options.syncseq_min_repeat * g_options.stream_min_period >= g_options.stream_bit_size) {
+                        _ftprintf(stderr, _T("error: syncseq_min_repeat * stream_min_period must be less than stream_bit_size: syncseq_min_repeat=%u stream_min_period=%u stream_bit_size=%") _T(PRIu64) _T("\n"),
+                            g_options.syncseq_min_repeat, g_options.stream_min_period, g_options.stream_bit_size);
                         return 255;
                     }
                 } break;
