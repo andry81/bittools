@@ -1,4 +1,7 @@
 2022.02.08:
+* changed: src/bitsync: version increment
+
+2022.02.08:
 * fixed: src/bitsync: command line parameters check fixup
 
 2022.02.08:
