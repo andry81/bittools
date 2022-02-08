@@ -1,3 +1,6 @@
+2022.02.08:
+* fixed: src/bitsync: minor fixup, algorithm complexity correction
+
 2022.02.05:
 * fixed: src/bitsync: missed to zeroing a buffer last byte bits remainder
 * changed: src/bitsync: `memcpy_bitwise64` function moved into `tacklelib` library

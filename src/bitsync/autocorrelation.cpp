@@ -530,8 +530,8 @@ void calculate_syncseq_autocorrelation(
         // For example, if synchro sequence has 20 bits length, then algorithm would output uncertain correlation mean values after a value greater than 66% of noised
         // bits of 10 bits, i.e. greater than ~6 noised bits per 20 bit synchro sequence.
         //
-        // Memory complexity:   from O(N) to o(N * N * N), depends on the C constant below, in approximation ~ O(N) for `/autocorr-min 0.81`
-        // Time complexity:     o(N * N * N) or in approximation ~ (N ^ 1/3) * (N ^ 1/2) * N
+        // Memory complexity:   from O(N) to O(N * N * Log2(N)), depends on the C constant below, in approximation ~ O(N) for `/autocorr-min 0.81`
+        // Time complexity:     O(N * N * Log2(N))
         //                        , where N - stream bit length, C - a constant in range [0; 1] controlled through the `/autocorr-min` option (inversed)
         //
 
