@@ -1,3 +1,9 @@
+2022.02.09:
+* fixed: src/bitsync: command line parameters check fixup
+* new: src/bitsync: `/max-periods-in-offset`, `/maxpio` options and default value to reduce algorithm memory and time consumption
+* changed: src/bitsync: improved algorithm memory and time consumption for default parameters
+* changed: deploy/bitstreams: readme update
+
 2022.02.08:
 * changed: src/bitsync: version increment
 

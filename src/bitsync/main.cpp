@@ -6,6 +6,7 @@
 
 
 #define DEFAULT_SYNCSEQ_MAXIMAL_REPEAT_PERIOD   16
+#define DEFAULT_MAX_PERIODS_IN_OFFSET           16
 
 const TCHAR * g_flags_to_parse_arr[] = {
     _T("/stream-byte-size"), _T("/s"),
@@ -16,6 +17,7 @@ const TCHAR * g_flags_to_parse_arr[] = {
     _T("/syncseq-max-repeat"), _T("/rmax"),
     _T("/stream-min-period"), _T("/spmin"),
     _T("/stream-max-period"), _T("/spmax"),
+    _T("/max-periods-in-offset"), _T("/maxpio"),
     _T("/gen-token"), _T("/g"),
     _T("/gen-input-noise"), _T("/inn"),
     _T("/insert-output-syncseq"), _T("/outss"),
@@ -124,6 +126,18 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
             if (is_arg_in_filter(start_arg, include_filter_arr)) {
                 options.stream_max_period = _ttoi(arg);
+                return 1;
+            }
+            return 0;
+        }
+        else error = invalid_format_flag(start_arg);
+        return 2;
+    }
+    if (is_arg_equal_to(arg, _T("/max-periods-in-offset")) || is_arg_equal_to(arg, _T("/maxpio"))) {
+        arg_offset += 1;
+        if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
+            if (is_arg_in_filter(start_arg, include_filter_arr)) {
+                options.max_periods_in_offset = _ttoi(arg);
                 return 1;
             }
             return 0;
@@ -512,6 +526,11 @@ int _tmain(int argc, const TCHAR * argv[])
                             g_options.syncseq_min_repeat, g_options.syncseq_max_repeat);
                         return 255;
                     }
+
+                    if (g_options.max_periods_in_offset != math::uint32_max && !g_options.max_periods_in_offset) {
+                        _ftprintf(stderr, _T("error: max_periods_in_offset must be positive\n"));
+                        return 255;
+                    }
                 } break;
                 }
 
@@ -579,23 +598,6 @@ int _tmain(int argc, const TCHAR * argv[])
                 } break;
                 }
 
-                if (g_options.syncseq_min_repeat == math::uint32_max) {
-                    g_options.syncseq_min_repeat = 0;
-                }
-
-                if (g_options.syncseq_max_repeat == math::uint32_max) {
-                    if (g_options.syncseq_min_repeat != math::uint32_max && g_options.syncseq_min_repeat > DEFAULT_SYNCSEQ_MAXIMAL_REPEAT_PERIOD) {
-                        g_options.syncseq_max_repeat = g_options.syncseq_min_repeat;
-                    }
-                    else {
-                        g_options.syncseq_max_repeat = DEFAULT_SYNCSEQ_MAXIMAL_REPEAT_PERIOD;
-                    }
-                }
-
-                if (g_options.stream_min_period == math::uint32_max) {
-                    g_options.stream_min_period = 0;
-                }
-
                 const tackle::file_handle<TCHAR> file_in_handle = utility::open_file(g_options.input_file, _T("rb"), utility::SharedAccess_DenyWrite);
 
                 if (g_options.stream_bit_size) {
@@ -645,6 +647,27 @@ int _tmain(int argc, const TCHAR * argv[])
                         return 255;
                     }
                 } break;
+                }
+
+                if (g_options.syncseq_min_repeat == math::uint32_max) {
+                    g_options.syncseq_min_repeat = 0;
+                }
+
+                if (g_options.syncseq_max_repeat == math::uint32_max) {
+                    if (g_options.syncseq_min_repeat != math::uint32_max && g_options.syncseq_min_repeat > DEFAULT_SYNCSEQ_MAXIMAL_REPEAT_PERIOD) {
+                        g_options.syncseq_max_repeat = g_options.syncseq_min_repeat;
+                    }
+                    else {
+                        g_options.syncseq_max_repeat = DEFAULT_SYNCSEQ_MAXIMAL_REPEAT_PERIOD;
+                    }
+                }
+
+                if (g_options.stream_min_period == math::uint32_max) {
+                    g_options.stream_min_period = 0;
+                }
+
+                if (g_options.max_periods_in_offset == math::uint32_max) {
+                    g_options.max_periods_in_offset = DEFAULT_MAX_PERIODS_IN_OFFSET;
                 }
 
                 switch (mode) {
@@ -875,6 +898,7 @@ int _tmain(int argc, const TCHAR * argv[])
                             g_options.autocorr_min,
                             g_options.syncseq_min_repeat,
                             g_options.syncseq_max_repeat,
+                            g_options.max_periods_in_offset,
                             size_t(g_options.autocorr_mean_buf_max_size_mb * 1024 * 1024) // 4GB max
                         },
                         AutocorrInOutParams{
@@ -921,6 +945,7 @@ int _tmain(int argc, const TCHAR * argv[])
                             "length/value:                  {:d} / {:#010x}\n"
                             "offset:                    {:s}{:d}{:s}\n"                     // CAUTION: can be greater than stream width/period because of noise or synchronous sequence change in the input data!
                             "period (width):            {:s}{:s}{:s}\n"
+                            "max periods in offset:         {:d}\n"
                             "period in min/max:             {:d} / {:s}\n"
                             "period out min/max:            {:d} / {:d}\n"
                             "period min/used/max repeat:    {:d} / {:d} / {:d}\n"
@@ -939,6 +964,7 @@ int _tmain(int argc, const TCHAR * argv[])
                                 std::to_string(sync_data.stream_params.stream_width) :
                                 "-",
                             period_suffix_msg_str,
+                            sync_data.autocorr_in_params.max_periods_in_offset,
                             g_options.stream_min_period,
                             g_options.stream_max_period != math::uint32_max ?
                                 std::to_string(g_options.stream_max_period) :
@@ -965,6 +991,7 @@ int _tmain(int argc, const TCHAR * argv[])
                             "length/value:                  {:d} / {:#010x}\n"
                             "offset:                        {:s}\n"
                             "period (width):                -\n"
+                            "max periods in offset:         {:d}\n"
                             "period in min/max:             {:d} / {:s}\n"
                             "period out min/max:            {:d} / {:d}\n"
                             "period min/max repeat:         {:d} / {:d}\n"
@@ -978,6 +1005,7 @@ int _tmain(int argc, const TCHAR * argv[])
                             sync_data.syncseq_bit_offset != math::uint32_max ?
                                 std::to_string(sync_data.syncseq_bit_offset) :
                                 "-",
+                            sync_data.autocorr_in_params.max_periods_in_offset,
                             g_options.stream_min_period,
                             g_options.stream_max_period != math::uint32_max ?
                                 std::to_string(g_options.stream_max_period) :

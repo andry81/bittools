@@ -39,7 +39,7 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
       /stream-min-period <value>
       /spmin <value>
         Suggests a bit stream minimum period to start search with to calculate
-        autocorrelation mean values. Can significally decrease memory
+        autocorrelation mean values. Can significally decrease memory and time
         consumption described for the `/autocorr-mean-buf-max-size-mb`
         parameter.
 
@@ -57,7 +57,7 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
       /stream-max-period <value>
       /spmax <value>
         Suggests a bit stream maximum period to start search with to calculate
-        autocorrelation mean values. Can significally decrease memory
+        autocorrelation mean values. Can significally decrease memory and time
         consumption described for the `/autocorr-mean-buf-max-size-mb`
         parameter.
 
@@ -69,6 +69,23 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
           certainty of autocorrelation mean values would be not enough and the
           calculated offset and period will be incorrect independently to the
           input noise.
+
+      /max-periods-in-offset <value>
+      /maxpio <value>
+        Suggests maximal number of periods contained in an offset which
+        autocorrelation value is being accumulated. Can significally decrease
+        memory and time consumption described for the
+        `/autocorr-mean-buf-max-size-mb` parameter.
+
+        This is additional option to cut off the calculations without
+        significantly or noticeably reduce certainty of the result.
+
+        Default value is 16.
+
+        CAUTION:
+          Must be enough to accumulate enough certainty of autocorrelation
+          mean values, otherwise the calculated offset and period will be
+          incorrect independently to the input noise.
 
       /syncseq-bit-size <value>
       /q <value>
@@ -183,7 +200,7 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
         CAUTION:
           If the buffer is not enough, then the certainty of autocorrelation
           mean values would be not enough and the calculated offset and period
-          will be incorrect independently to the input noise.
+          may be incorrect independently to the input noise.
 
         Default value is 400MB.
 

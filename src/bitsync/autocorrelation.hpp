@@ -13,6 +13,7 @@ struct AutocorrInParams
     float                           corr_min_value;                 // used for both the autocorrelation min value and the autocorrelation min mean value
     uint32_t                        period_min_repeat;              // period min/max repeat quantity to calculate autocorrelation mean values
     uint32_t                        period_max_repeat;
+    uint32_t                        max_periods_in_offset;
     size_t                          max_corr_mean_bytes;
 };
 

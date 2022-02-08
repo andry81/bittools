@@ -50,6 +50,7 @@ Options::Options()
     stream_bit_size                 = 0;
     stream_min_period               = math::uint32_max;
     stream_max_period               = math::uint32_max;
+    max_periods_in_offset           = math::uint32_max;
     syncseq_bit_size                = 0;
     syncseq_int32                   = 0;
     syncseq_min_repeat              = math::uint32_max;

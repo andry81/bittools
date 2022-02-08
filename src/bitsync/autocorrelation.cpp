@@ -610,6 +610,10 @@ void calculate_syncseq_autocorrelation(
                     break;
                 }
 
+                if ((i + period - 1) / period >= autocorr_in_params.max_periods_in_offset + 1) {
+                    break;
+                }
+
                 autocorr_offset_mean_arr.push_back(AutocorrOffsetMean{ autocorr_values_arr[size_t(i)], i, 1 });
 
                 AutocorrOffsetMean & autocorr_offset_mean = autocorr_offset_mean_arr.back();
