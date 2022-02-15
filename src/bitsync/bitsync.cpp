@@ -58,10 +58,10 @@ Options::Options()
     bits_per_baud                       = 0;
     gen_input_noise_bit_block_size      = 0;
     gen_input_noise_block_bit_prob      = 0;
-    insert_output_synseq_first_offset   = math::uint32_max;
-    insert_output_synseq_last_offset    = math::uint32_max;
-    insert_output_synseq_period         = 0;
-    insert_output_synseq_period_repeat  = math::uint32_max;
+    insert_output_syncseq_first_offset  = math::uint32_max;
+    insert_output_syncseq_last_offset   = math::uint32_max;
+    insert_output_syncseq_period        = 0;
+    insert_output_syncseq_period_repeat = math::uint32_max;
     autocorr_min                        = 0;
     autocorr_mean_buf_max_size_mb       = 400; // 400 Mb is default
 }
@@ -438,32 +438,32 @@ void generate_stream(GenData & data, tackle::file_reader_state & state, uint8_t 
 
     data.stream_params.last_bit_offset = stream_bit_offset;
 
-    uint64_t synseq_first_offset = 0;
+    uint64_t syncseq_first_offset = 0;
 
-    if (g_options.insert_output_synseq_period) {
-        synseq_first_offset = data.basic_data.options_ptr->insert_output_synseq_first_offset;
-        const uint32_t synseq_last_offset = data.basic_data.options_ptr->insert_output_synseq_last_offset;
-        const uint32_t synseq_period = data.basic_data.options_ptr->insert_output_synseq_period;
-        const uint32_t synseq_period_repeat = data.basic_data.options_ptr->insert_output_synseq_period_repeat;
+    if (g_options.insert_output_syncseq_period) {
+        syncseq_first_offset = data.basic_data.options_ptr->insert_output_syncseq_first_offset;
+        const uint32_t syncseq_last_offset = data.basic_data.options_ptr->insert_output_syncseq_last_offset;
+        const uint32_t syncseq_period = data.basic_data.options_ptr->insert_output_syncseq_period;
+        const uint32_t syncseq_period_repeat = data.basic_data.options_ptr->insert_output_syncseq_period_repeat;
 
-        if (synseq_first_offset >= stream_bit_start_offset) {
-            synseq_first_offset -= stream_bit_start_offset;
+        if (syncseq_first_offset >= stream_bit_start_offset) {
+            syncseq_first_offset -= stream_bit_start_offset;
         }
         else {
-            synseq_first_offset = synseq_period - (stream_bit_start_offset - synseq_first_offset) % synseq_period;
+            syncseq_first_offset = syncseq_period - (stream_bit_start_offset - syncseq_first_offset) % syncseq_period;
         }
 
-        if (synseq_first_offset < stream_bit_size) {
+        if (syncseq_first_offset < stream_bit_size) {
             write_syncseq(data.file_out_handle, buf_out, size,
                 data.basic_data.options_ptr->syncseq_int32,
                 data.basic_data.options_ptr->syncseq_bit_size,
-                uint32_t(synseq_first_offset), synseq_last_offset,
-                synseq_period, synseq_period_repeat,
+                uint32_t(syncseq_first_offset), syncseq_last_offset,
+                syncseq_period, syncseq_period_repeat,
                 data.basic_data.flags_ptr->insert_output_syncseq_instead_fill);
         }
     }
 
-    if (!g_options.insert_output_synseq_period || synseq_first_offset >= stream_bit_size) {
+    if (!g_options.insert_output_syncseq_period || syncseq_first_offset >= stream_bit_size) {
         const size_t write_size = fwrite(buf_out, 1, size, data.file_out_handle.get());
         const int file_write_err = ferror(data.file_out_handle.get());
 
@@ -517,32 +517,32 @@ inline void pipe_stream(PipeData & data, tackle::file_reader_state & state, uint
         }
     }
 
-    uint64_t synseq_first_offset = 0;
+    uint64_t syncseq_first_offset = 0;
 
-    if (g_options.insert_output_synseq_period) {
-        synseq_first_offset = data.basic_data.options_ptr->insert_output_synseq_first_offset;
-        const uint32_t synseq_last_offset = data.basic_data.options_ptr->insert_output_synseq_last_offset;
-        const uint32_t synseq_period = data.basic_data.options_ptr->insert_output_synseq_period;
-        const uint32_t synseq_period_repeat = data.basic_data.options_ptr->insert_output_synseq_period_repeat;
+    if (g_options.insert_output_syncseq_period) {
+        syncseq_first_offset = data.basic_data.options_ptr->insert_output_syncseq_first_offset;
+        const uint32_t syncseq_last_offset = data.basic_data.options_ptr->insert_output_syncseq_last_offset;
+        const uint32_t syncseq_period = data.basic_data.options_ptr->insert_output_syncseq_period;
+        const uint32_t syncseq_period_repeat = data.basic_data.options_ptr->insert_output_syncseq_period_repeat;
 
-        if (synseq_first_offset >= stream_bit_start_offset) {
-            synseq_first_offset -= stream_bit_start_offset;
+        if (syncseq_first_offset >= stream_bit_start_offset) {
+            syncseq_first_offset -= stream_bit_start_offset;
         }
         else {
-            synseq_first_offset = synseq_period - (stream_bit_start_offset - synseq_first_offset) % synseq_period;
+            syncseq_first_offset = syncseq_period - (stream_bit_start_offset - syncseq_first_offset) % syncseq_period;
         }
 
-        if (synseq_first_offset < stream_bit_size) {
+        if (syncseq_first_offset < stream_bit_size) {
             write_syncseq(data.file_out_handle, buf, size,
                 data.basic_data.options_ptr->syncseq_int32,
                 data.basic_data.options_ptr->syncseq_bit_size,
-                uint32_t(synseq_first_offset), synseq_last_offset,
-                synseq_period, synseq_period_repeat,
+                uint32_t(syncseq_first_offset), syncseq_last_offset,
+                syncseq_period, syncseq_period_repeat,
                 data.basic_data.flags_ptr->insert_output_syncseq_instead_fill);
         }
     }
 
-    if (!g_options.insert_output_synseq_period || synseq_first_offset >= stream_bit_size) {
+    if (!g_options.insert_output_syncseq_period || syncseq_first_offset >= stream_bit_size) {
         const size_t write_size = fwrite(buf, 1, size, data.file_out_handle.get());
         const int file_write_err = ferror(data.file_out_handle.get());
         if (write_size < size) {
@@ -677,7 +677,7 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
 
     // Example of a command line to run a test:
     //
-    //  `bitsync.exe /autocorr-min 0.81 /inn <bit-block-size> <probability-per-block> /tee-input test_input_w_noise.bin /spmin <stream-min-period> /spmax <stream-max-period> /s <stream-byte-size> /q <syncseq-bit-size> /r <synseq-repeat-value> /k <synseq-hex-value> sync <bits-per-baud> test_input.bin .`
+    //  `bitsync.exe /autocorr-min 0.81 /inn <bit-block-size> <probability-per-block> /tee-input test_input_w_noise.bin /spmin <stream-min-period> /spmax <stream-max-period> /s <stream-byte-size> /q <syncseq-bit-size> /r <syncseq-repeat-value> /k <syncseq-hex-value> sync <bits-per-baud> test_input.bin .`
     //
     //  For example, if syncseq-bit-size=20, then `bit-block-size` can be half of the synchro sequence - `10` with probability-per-block=100.
     //  That means the noise generator would generate from 1 to 3 of inversed bits per each synchro sequence in a bit stream.

@@ -229,11 +229,11 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         arg_offset += 1;
         if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
             if (is_arg_in_filter(start_arg, include_filter_arr)) {
-                tsscanf(arg, _T("%u:%u"), &options.insert_output_synseq_first_offset, &options.insert_output_synseq_last_offset);
+                tsscanf(arg, _T("%u:%u"), &options.insert_output_syncseq_first_offset, &options.insert_output_syncseq_last_offset);
 
                 arg_offset += 1;
                 if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
-                    tsscanf(arg, _T("%u:%u"), &options.insert_output_synseq_period, &options.insert_output_synseq_period_repeat);
+                    tsscanf(arg, _T("%u:%u"), &options.insert_output_syncseq_period, &options.insert_output_syncseq_period_repeat);
                     flags.insert_output_syncseq_instead_fill = true;
                     return 1;
                 }
@@ -250,13 +250,13 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
             if (is_arg_in_filter(start_arg, include_filter_arr)) {
                 if (!flags.insert_output_syncseq_instead_fill) {
-                    tsscanf(arg, _T("%u:%u"), &options.insert_output_synseq_first_offset, &options.insert_output_synseq_last_offset);
+                    tsscanf(arg, _T("%u:%u"), &options.insert_output_syncseq_first_offset, &options.insert_output_syncseq_last_offset);
                 }
 
                 arg_offset += 1;
                 if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
                     if (!flags.insert_output_syncseq_instead_fill) {
-                        tsscanf(arg, _T("%u:%u"), &options.insert_output_synseq_period, &options.insert_output_synseq_period_repeat);
+                        tsscanf(arg, _T("%u:%u"), &options.insert_output_syncseq_period, &options.insert_output_syncseq_period_repeat);
                     }
 
                     return 1;
@@ -700,22 +700,22 @@ int _tmain(int argc, const TCHAR * argv[])
                 case Mode_Gen:
                 case Mode_Pipe:
                 {
-                    if (g_options.insert_output_synseq_first_offset != math::uint32_max) {
-                        if (g_options.insert_output_synseq_first_offset >= g_options.stream_byte_size * 8) {
-                            _ftprintf(stderr, _T("error: insert_output_synseq_first_offset must be less than bit stream length: stream_bit_size=%u insert_output_synseq_first_offset=%u\n"),
-                                g_options.stream_byte_size * 8, g_options.insert_output_synseq_first_offset);
+                    if (g_options.insert_output_syncseq_first_offset != math::uint32_max) {
+                        if (g_options.insert_output_syncseq_first_offset >= g_options.stream_byte_size * 8) {
+                            _ftprintf(stderr, _T("error: insert_output_syncseq_first_offset must be less than bit stream length: stream_bit_size=%u insert_output_syncseq_first_offset=%u\n"),
+                                g_options.stream_byte_size * 8, g_options.insert_output_syncseq_first_offset);
                             return 255;
                         }
 
-                        if (!g_options.insert_output_synseq_period) {
-                            _ftprintf(stderr, _T("error: insert_output_synseq_period must be positive\n"));
+                        if (!g_options.insert_output_syncseq_period) {
+                            _ftprintf(stderr, _T("error: insert_output_syncseq_period must be positive\n"));
                             return 255;
                         }
 
-                        if (g_options.insert_output_synseq_last_offset != math::uint32_max) {
-                            if (g_options.insert_output_synseq_last_offset < g_options.insert_output_synseq_first_offset) {
-                                _ftprintf(stderr, _T("error: insert_output_synseq_first_offset must be not greater than insert_output_synseq_last_offset: insert_output_synseq_first_offset=%u insert_output_synseq_last_offset=%u\n"),
-                                    g_options.insert_output_synseq_first_offset, g_options.insert_output_synseq_last_offset);
+                        if (g_options.insert_output_syncseq_last_offset != math::uint32_max) {
+                            if (g_options.insert_output_syncseq_last_offset < g_options.insert_output_syncseq_first_offset) {
+                                _ftprintf(stderr, _T("error: insert_output_syncseq_first_offset must be not greater than insert_output_syncseq_last_offset: insert_output_syncseq_first_offset=%u insert_output_syncseq_last_offset=%u\n"),
+                                    g_options.insert_output_syncseq_first_offset, g_options.insert_output_syncseq_last_offset);
                                 return 255;
                             }
                         }

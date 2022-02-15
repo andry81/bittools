@@ -1,9 +1,12 @@
+2022.02.16:
+* changed: src/bitsync: minor cleanup
+
 2022.02.15:
 * fixed: src/bitsync: `/insert-output-syncseq` option usage for an edge case
 * new: src/bitsync: <last_offset> and <repeat> optional sub parameters for `/insert-output-syncseq` option
 * new: src/bitsync: `/fill-output-syncseq`, `outssf` options to fill a synchro sequence into the output instead of insert it
 * new: deploy/bitstreams: mixed offset bit stream example
-* changed: src/bitsync: removed the check `insert_output_synseq_period must be less than bit stream length`, left the check `insert_output_synseq_first_offset must be less than bit stream length`
+* changed: src/bitsync: removed the check `insert_output_syncseq_period must be less than bit stream length`, left the check `insert_output_syncseq_first_offset must be less than bit stream length`
 * changed: deploy/bitstreams: readme update
 
 2022.02.09:
