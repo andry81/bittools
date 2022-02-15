@@ -35,6 +35,8 @@ _config/config.system.vars.in -text
 /changelog.txt -text
 deploy/bitstreams/README.txt -text
 deploy/bitstreams/test_empty_stream.bin -text
+deploy/bitstreams/test_filled_stream.bin -text svneol=unset#application/octet-stream
+deploy/bitstreams/test_w_mixed_offset-\[907+927-2964-1d0af\].bin -text
 deploy/bitstreams/test_w_offset-\[907-2964-1d0af\].bin -text
 deploy/scripts/search_syncseq.bat -text
 deploy/scripts/search_syncseq~no-mean.bat -text
