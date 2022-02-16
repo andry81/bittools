@@ -1,4 +1,7 @@
 2022.02.16:
+* refactor: __init__: minor refactor
+
+2022.02.16:
 * changed: src/bitsync: minor interface change
 
 2022.02.16:
