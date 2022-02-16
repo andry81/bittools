@@ -1,4 +1,7 @@
 2022.02.16:
+* changed: src/bitsync: minor interface change
+
+2022.02.16:
 * changed: src/bitsync: minor cleanup
 
 2022.02.15:

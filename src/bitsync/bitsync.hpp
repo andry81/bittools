@@ -81,10 +81,10 @@ struct Options
     uint32_t                syncseq_max_repeat;
     uint32_t                bits_per_baud;
     std::tstring            gen_token;
-    uint32_t                gen_input_noise_bit_block_size; // 0-32767, 0 - don't generate
-    uint32_t                gen_input_noise_block_bit_prob; // 1-100
+    uint32_t                gen_input_noise_bit_block_size;     // 0-32767, 0 - don't generate
+    uint32_t                gen_input_noise_block_bit_prob;     // 1-100
     uint32_t                insert_output_syncseq_first_offset;
-    uint32_t                insert_output_syncseq_last_offset;
+    uint32_t                insert_output_syncseq_end_offset;   // excluding
     uint32_t                insert_output_syncseq_period;
     uint32_t                insert_output_syncseq_period_repeat;
     float                   autocorr_min;

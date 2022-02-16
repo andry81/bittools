@@ -59,7 +59,7 @@ Options::Options()
     gen_input_noise_bit_block_size      = 0;
     gen_input_noise_block_bit_prob      = 0;
     insert_output_syncseq_first_offset  = math::uint32_max;
-    insert_output_syncseq_last_offset   = math::uint32_max;
+    insert_output_syncseq_end_offset    = math::uint32_max;
     insert_output_syncseq_period        = 0;
     insert_output_syncseq_period_repeat = math::uint32_max;
     autocorr_min                        = 0;
@@ -216,7 +216,7 @@ inline void generate_noise(const BasicData & basic_data, StreamParams & stream_p
 
 inline void write_syncseq(
     const tackle::file_handle<TCHAR> & file_out_handle, uint8_t * buf_in, size_t size, uint32_t syncseq_int32, uint32_t syncseq_bit_size,
-    uint32_t first_offset, uint32_t last_offset, uint32_t period, uint32_t period_repeat, bool insert_instead_fill)
+    uint32_t first_offset, uint32_t end_offset, uint32_t period, uint32_t period_repeat, bool insert_instead_fill)
 {
     assert(size);
     assert(syncseq_bit_size);
@@ -267,7 +267,7 @@ inline void write_syncseq(
     }
 
     uint64_t from_first_bit_offset = first_offset;
-    uint64_t from_last_bit_offset = (std::min)(uint64_t(last_offset), stream_bit_size - 1);
+    uint64_t from_end_bit_offset = (std::min)(uint64_t(end_offset), stream_bit_size);
 
     uint64_t to_bit_offset = first_offset;
 
@@ -279,9 +279,9 @@ inline void write_syncseq(
     if (syncseq_bit_size < period) {
         const uint64_t from_bit_step = period - syncseq_bit_size;
 
-        while (from_last_bit_offset >= from_first_bit_offset && to_bit_offset < inserted_stream_bit_size) {
-            syncseq_bit_size_to_copy = (std::min)(inserted_stream_bit_size - to_bit_offset, uint64_t(syncseq_bit_size));        // `to` limit
-            syncseq_bit_size_to_copy = (std::min)(from_last_bit_offset + 1 - from_first_bit_offset, syncseq_bit_size_to_copy);  // `from` limit
+        while (from_first_bit_offset < from_end_bit_offset && to_bit_offset < inserted_stream_bit_size) {
+            syncseq_bit_size_to_copy = (std::min)(inserted_stream_bit_size - to_bit_offset, uint64_t(syncseq_bit_size));    // `to` limit
+            syncseq_bit_size_to_copy = (std::min)(from_end_bit_offset - from_first_bit_offset, syncseq_bit_size_to_copy);   // `from` limit
 
             utility::memcpy_bitwise64(buf_out, to_bit_offset, (uint8_t*)&syncseq_bytes, 0, syncseq_bit_size_to_copy);
 
@@ -295,13 +295,13 @@ inline void write_syncseq(
             else {
                 from_first_bit_offset += syncseq_bit_size_to_copy;
 
-                if (from_last_bit_offset < from_first_bit_offset) {
+                if (from_first_bit_offset >= from_end_bit_offset) {
                     break;
                 }
             }
 
-            period_remainder_bit_size_to_copy = (std::min)(inserted_stream_bit_size - to_bit_offset, from_bit_step);                                // `to` limit
-            period_remainder_bit_size_to_copy = (std::min)(from_last_bit_offset + 1 - from_first_bit_offset, period_remainder_bit_size_to_copy);    // `from` limit
+            period_remainder_bit_size_to_copy = (std::min)(inserted_stream_bit_size - to_bit_offset, from_bit_step);                        // `to` limit
+            period_remainder_bit_size_to_copy = (std::min)(from_end_bit_offset - from_first_bit_offset, period_remainder_bit_size_to_copy); // `from` limit
 
             if (period_remainder_bit_size_to_copy) {
                 utility::memcpy_bitwise64(buf_out, to_bit_offset, buf_in, from_first_bit_offset, period_remainder_bit_size_to_copy);
@@ -318,9 +318,9 @@ inline void write_syncseq(
         }
     }
     else {
-        while (from_last_bit_offset >= from_first_bit_offset && to_bit_offset < inserted_stream_bit_size) {
-            syncseq_bit_size_to_copy = (std::min)(inserted_stream_bit_size - to_bit_offset, uint64_t(syncseq_bit_size));        // `to` limit
-            syncseq_bit_size_to_copy = (std::min)(from_last_bit_offset + 1 - from_first_bit_offset, syncseq_bit_size_to_copy);  // `from` limit
+        while (from_first_bit_offset < from_end_bit_offset && to_bit_offset < inserted_stream_bit_size) {
+            syncseq_bit_size_to_copy = (std::min)(inserted_stream_bit_size - to_bit_offset, uint64_t(syncseq_bit_size));    // `to` limit
+            syncseq_bit_size_to_copy = (std::min)(from_end_bit_offset - from_first_bit_offset, syncseq_bit_size_to_copy);   // `from` limit
 
             if (syncseq_bit_size_to_copy) {
                 utility::memcpy_bitwise64(buf_out, to_bit_offset, (uint8_t*)&syncseq_bytes, 0, uint32_t(syncseq_bit_size_to_copy));
@@ -442,7 +442,7 @@ void generate_stream(GenData & data, tackle::file_reader_state & state, uint8_t 
 
     if (g_options.insert_output_syncseq_period) {
         syncseq_first_offset = data.basic_data.options_ptr->insert_output_syncseq_first_offset;
-        const uint32_t syncseq_last_offset = data.basic_data.options_ptr->insert_output_syncseq_last_offset;
+        const uint32_t syncseq_end_offset = data.basic_data.options_ptr->insert_output_syncseq_end_offset;
         const uint32_t syncseq_period = data.basic_data.options_ptr->insert_output_syncseq_period;
         const uint32_t syncseq_period_repeat = data.basic_data.options_ptr->insert_output_syncseq_period_repeat;
 
@@ -457,7 +457,7 @@ void generate_stream(GenData & data, tackle::file_reader_state & state, uint8_t 
             write_syncseq(data.file_out_handle, buf_out, size,
                 data.basic_data.options_ptr->syncseq_int32,
                 data.basic_data.options_ptr->syncseq_bit_size,
-                uint32_t(syncseq_first_offset), syncseq_last_offset,
+                uint32_t(syncseq_first_offset), syncseq_end_offset,
                 syncseq_period, syncseq_period_repeat,
                 data.basic_data.flags_ptr->insert_output_syncseq_instead_fill);
         }
@@ -521,7 +521,7 @@ inline void pipe_stream(PipeData & data, tackle::file_reader_state & state, uint
 
     if (g_options.insert_output_syncseq_period) {
         syncseq_first_offset = data.basic_data.options_ptr->insert_output_syncseq_first_offset;
-        const uint32_t syncseq_last_offset = data.basic_data.options_ptr->insert_output_syncseq_last_offset;
+        const uint32_t syncseq_end_offset = data.basic_data.options_ptr->insert_output_syncseq_end_offset;
         const uint32_t syncseq_period = data.basic_data.options_ptr->insert_output_syncseq_period;
         const uint32_t syncseq_period_repeat = data.basic_data.options_ptr->insert_output_syncseq_period_repeat;
 
@@ -536,7 +536,7 @@ inline void pipe_stream(PipeData & data, tackle::file_reader_state & state, uint
             write_syncseq(data.file_out_handle, buf, size,
                 data.basic_data.options_ptr->syncseq_int32,
                 data.basic_data.options_ptr->syncseq_bit_size,
-                uint32_t(syncseq_first_offset), syncseq_last_offset,
+                uint32_t(syncseq_first_offset), syncseq_end_offset,
                 syncseq_period, syncseq_period_repeat,
                 data.basic_data.flags_ptr->insert_output_syncseq_instead_fill);
         }

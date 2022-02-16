@@ -229,7 +229,7 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         arg_offset += 1;
         if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
             if (is_arg_in_filter(start_arg, include_filter_arr)) {
-                tsscanf(arg, _T("%u:%u"), &options.insert_output_syncseq_first_offset, &options.insert_output_syncseq_last_offset);
+                tsscanf(arg, _T("%u:%u"), &options.insert_output_syncseq_first_offset, &options.insert_output_syncseq_end_offset);
 
                 arg_offset += 1;
                 if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
@@ -250,7 +250,7 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
             if (is_arg_in_filter(start_arg, include_filter_arr)) {
                 if (!flags.insert_output_syncseq_instead_fill) {
-                    tsscanf(arg, _T("%u:%u"), &options.insert_output_syncseq_first_offset, &options.insert_output_syncseq_last_offset);
+                    tsscanf(arg, _T("%u:%u"), &options.insert_output_syncseq_first_offset, &options.insert_output_syncseq_end_offset);
                 }
 
                 arg_offset += 1;
@@ -712,10 +712,10 @@ int _tmain(int argc, const TCHAR * argv[])
                             return 255;
                         }
 
-                        if (g_options.insert_output_syncseq_last_offset != math::uint32_max) {
-                            if (g_options.insert_output_syncseq_last_offset < g_options.insert_output_syncseq_first_offset) {
-                                _ftprintf(stderr, _T("error: insert_output_syncseq_first_offset must be not greater than insert_output_syncseq_last_offset: insert_output_syncseq_first_offset=%u insert_output_syncseq_last_offset=%u\n"),
-                                    g_options.insert_output_syncseq_first_offset, g_options.insert_output_syncseq_last_offset);
+                        if (g_options.insert_output_syncseq_end_offset != math::uint32_max) {
+                            if (g_options.insert_output_syncseq_first_offset >= g_options.insert_output_syncseq_end_offset) {
+                                _ftprintf(stderr, _T("error: insert_output_syncseq_first_offset must be less than insert_output_syncseq_end_offset: insert_output_syncseq_first_offset=%u insert_output_syncseq_end_offset=%u\n"),
+                                    g_options.insert_output_syncseq_first_offset, g_options.insert_output_syncseq_end_offset);
                                 return 255;
                             }
                         }

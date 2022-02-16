@@ -159,21 +159,20 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
           2. `/inn 8 100`
             Invert random bit in each byte.
 
-      /insert-output-syncseq <first_offset>[:<last_offset>]
-        <period>[:<repeat>]
-      /outss <first_offset>[:<last_offset>] <period>[:<repeat>]
+      /insert-output-syncseq <first_offset>[:<end_offset>] <period>[:<repeat>]
+      /outss <first_offset>[:<end_offset>] <period>[:<repeat>]
         Insert synchro sequence in the output by <first_offset> and <period>.
         The options `/syncseq-int32` and `/syncseq-bit-size` must be defined.
 
-        If <last_offset> is defined, then does stop the insert after
-        <last_offset>, otherwise continue until the end of stream.
+        If <end_offset> is defined, then does stop the insert from the
+        <end_offset>, otherwise continue until the end of stream.
         If <repeat> is defined, then does repeat the insert that set of times,
         otherwise repeat until the end of stream.
 
         Has meaning only for these modes: gen | pipe | gen-sync.
 
-      /fill-output-syncseq <first_offset>[:<last_offset>] <period>[:<repeat>]
-      /outssf <first_offset>[:<last_offset>] <period>[:<repeat>]
+      /fill-output-syncseq <first_offset>[:<end_offset>] <period>[:<repeat>]
+      /outssf <first_offset>[:<end_offset>] <period>[:<repeat>]
         The same as `/insert-output-syncseq` but does fill instead of the
         insert overwriting the input bits (does not increase the output size).
 
