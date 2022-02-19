@@ -1,3 +1,7 @@
+2022.02.19:
+* fixed: _config, CMakeLists.txt: build cleanup
+* fixed: src: gencrctbl, mirrorfile, xorfile: build fixup
+
 2022.02.16:
 * refactor: __init__: minor refactor
 

@@ -74,7 +74,7 @@ namespace
             return;
         }
 
-        const std::string num_crc_chars_str = utility::int_to_dec(crc_byte_width * 2, 0);
+        const std::string num_crc_chars_str = utility::int_to_dec(crc_byte_width * 2, 0, utility::tag_string{});
 
         if (!reflect) {
             uint32_t reflected_crc_polynomial;

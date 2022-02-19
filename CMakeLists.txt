@@ -66,7 +66,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 ## cmake builtin search paths and includes ####################################
 ###############################################################################
 
-LIST(APPEND CMAKE_MODULE_PATH "${BITTOOLS_CMAKE_ROOT}")
+LIST(APPEND CMAKE_MODULE_PATH "${TACKLELIB_CMAKE_ROOT}")
 
 # cmake extension variables, must be before the first include
 #set(TACKLELIB_ENABLE_TARGETS_EXTENSION_FUNCTION_HANDLERS 1) # 0 - macro handlers, faster; 1 - function handlers, slower
@@ -529,7 +529,7 @@ add_custom_target(bundle
     -D "CPACK_BUNDLE_TEMPLATE_CONFIG_FILE=${CPACK_BUNDLE_TEMPLATE_CONFIG_FILE}"
     -D "CPACK_BUNDLE_OUTPUT_CONFIG_FILE=${CPACK_BUNDLE_OUTPUT_CONFIG_FILE}"
     # this one must be after all `-D`s
-    -P "${BITTOOLS_CMAKE_ROOT}/tacklelib/tools/CPackMakeConfig.cmake"
+    -P "${TACKLELIB_CMAKE_ROOT}/tacklelib/tools/CPackMakeConfig.cmake"
   COMMAND "${CMAKE_CPACK_COMMAND}" 
     -G "NSIS"
     -C "$<CONFIGURATION>"

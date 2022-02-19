@@ -42,7 +42,7 @@ namespace
         std::reverse(buf, buf + byte_width);
     }
 
-    void _read_file_chunk(uint8_t * buf, uint64_t size, void * user_data)
+    void read_file_chunk(uint8_t * buf, uint64_t size, void * user_data, tackle::file_reader_state & state)
     {
         if (sizeof(size_t) < sizeof(uint64_t)) {
             const uint64_t max_value = uint64_t((std::numeric_limits<size_t>::max)());
@@ -141,7 +141,7 @@ int main(int argc, char* argv[])
         UserData user_data;
         user_data.byte_width = byte_width;
         user_data.file_out_handle = file_out_handle;
-        tackle::file_reader<char>(file_in_handle, _read_file_chunk).do_read(&user_data, {}, byte_width, byte_width);
+        tackle::file_reader<char>(file_in_handle, read_file_chunk).do_read(&user_data, {}, byte_width, byte_width);
     }
     catch (std::exception & e) {
         std::cerr << e.what() << "\n";
