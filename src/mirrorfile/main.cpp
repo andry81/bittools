@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
             return 0;
         }
 
-        if (!utility::is_regular_file(in_file, false)) {
+        if (!utility::is_regular_file(in_file, std::codecvt_utf8<wchar_t>{}, false)) {
             fprintf(stderr, "error: input file is not found: \"%s\"\n", in_file.c_str());
             return 1;
         }
@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
             return 2;
         }
 
-        tackle::file_handle<char> file_in_handle = utility::open_file(in_file, "rb", utility::SharedAccess_DenyWrite);
+        tackle::file_handle<char> file_in_handle = utility::open_file(in_file, std::codecvt_utf8<wchar_t>{}, "rb", utility::SharedAccess_DenyWrite);
 
         tackle::path_string in_file_path = in_file;
 
@@ -124,7 +124,7 @@ int main(int argc, char* argv[])
             out_file = out_parent_path + (!out_parent_path.empty() ? "/" : "") + utility::get_file_name_stem(in_file_path) + "_mirror" + boost::fs::path{ in_file_path.str() }.extension().string();
         }
 
-        tackle::file_handle<char> file_out_handle = open_file(out_file, "wb", utility::SharedAccess_DenyWrite);
+        tackle::file_handle<char> file_out_handle = open_file(out_file, std::codecvt_utf8<wchar_t>{}, "wb", utility::SharedAccess_DenyWrite);
 
         typedef std::shared_ptr<uint8_t> ReadBufSharedPtr;
 

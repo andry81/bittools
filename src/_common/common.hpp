@@ -19,6 +19,16 @@
 #include "tacklelib/utility/math.hpp"
 #include "tacklelib/utility/locale.hpp"
 
+
+#ifdef _UNICODE
+#   define IF_UNICODE_(x, y) x
+#else
+#   define IF_UNICODE_(x, y) y
+#endif
+
+#define IF_UNICODE(x, y) IF_UNICODE_(x, y)
+
+
 using uint_t = unsigned int;
 
 #endif

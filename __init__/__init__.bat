@@ -35,7 +35,7 @@ if not exist "%BITTOOLS_PROJECT_OUTPUT_CONFIG_ROOT%\" ( mkdir "%BITTOOLS_PROJECT
 
 if not defined LOAD_CONFIG_VERBOSE if %INIT_VERBOSE%0 NEQ 0 set LOAD_CONFIG_VERBOSE=1
 
-call "%%CONTOOLS_ROOT%%/build/load_config_dir.bat" -gen_user_config "%%BITTOOLS_PROJECT_INPUT_CONFIG_ROOT%%" "%%BITTOOLS_PROJECT_OUTPUT_CONFIG_ROOT%%" || exit /b
+call "%%CONTOOLS_ROOT%%/build/load_config_dir.bat" %%* -gen_user_config "%%BITTOOLS_PROJECT_INPUT_CONFIG_ROOT%%" "%%BITTOOLS_PROJECT_OUTPUT_CONFIG_ROOT%%" || exit /b
 
 if not exist "%PROJECT_OUTPUT_ROOT%\" ( mkdir "%PROJECT_OUTPUT_ROOT%" || exit /b 11 )
 if not exist "%PROJECT_LOG_ROOT%\" ( mkdir "%PROJECT_LOG_ROOT%" || exit /b 12 )

@@ -1,7 +1,5 @@
 @echo off
 
-rem Configurator for cmake with generator.
-
 setlocal
 
 call "%%~dp0__init__/__init__.bat" || exit /b
@@ -35,7 +33,7 @@ echo.
 
 call :CMDINT "%%CONTOOLS_ROOT%%/cmake/check_config_version.bat" ^
   "%%CMAKE_CONFIG_VARS_SYSTEM_FILE_IN%%" "%%CMAKE_CONFIG_VARS_SYSTEM_FILE%%" ^
-  "%%CMAKE_CONFIG_VARS_USER_FILE_IN%%" "%%CMAKE_CONFIG_VARS_USER_FILE%%" || exit /b
+  "%%CMAKE_CONFIG_VARS_USER_0_FILE_IN%%" "%%CMAKE_CONFIG_VARS_USER_0_FILE%%" || exit /b
 
 set /A NEST_LVL+=1
 
@@ -47,6 +45,10 @@ set /A NEST_LVL-=1
 exit /b %LASTERROR%
 
 :MAIN
+call "%%CONTOOLS_ROOT%%/cmake/parse_flags.bat" %%* || exit /b
+
+if %__?FLAG_SHIFT% GTR 0 for /L %%i in (1,1,%__?FLAG_SHIFT%) do shift
+
 rem CAUTION: an empty value and `*` value has different meanings!
 rem
 set "CMAKE_BUILD_TYPE=%~1"
@@ -93,10 +95,10 @@ if %GENERATOR_IS_MULTI_CONFIG%0 NEQ 0 (
 if "%CMAKE_BUILD_TYPE%" == "*" (
   for %%i in (%CMAKE_CONFIG_TYPES:;= %) do (
     set "CMAKE_BUILD_TYPE=%%i"
-    call :CONFIGURE %%* || exit /b
+    call :CONFIGURE %%2 %%3 %%4 %%5 %%6 %%7 %%8 %%9 || exit /b
   )
 ) else (
-  call :CONFIGURE %%*
+  call :CONFIGURE %%2 %%3 %%4 %%5 %%6 %%7 %%8 %%9
 )
 
 exit /b
@@ -127,7 +129,7 @@ rem escape all values for `--make_vars`
 set "PROJECT_ROOT_ESCAPED=%BITTOOLS_PROJECT_ROOT:\=/%"
 set "PROJECT_ROOT_ESCAPED=%PROJECT_ROOT_ESCAPED:;=\;%"
 call :CMD "%%CONTOOLS_ROOT%%/cmake/set_vars_from_files.bat" ^
-  "%%CMAKE_CONFIG_VARS_SYSTEM_FILE:;=\;%%;%%CMAKE_CONFIG_VARS_USER_FILE:;=\;%%" "WIN" . "%%CMAKE_BUILD_TYPE_ARG%%" . ";" ^
+  "%%CMAKE_CONFIG_VARS_SYSTEM_FILE:;=\;%%;%%CMAKE_CONFIG_VARS_USER_0_FILE:;=\;%%" "WIN" . "%%CMAKE_BUILD_TYPE_ARG%%" . ";" ^
   --make_vars ^
   "CMAKE_CURRENT_PACKAGE_NEST_LVL;CMAKE_CURRENT_PACKAGE_NEST_LVL_PREFIX;CMAKE_CURRENT_PACKAGE_NAME;CMAKE_CURRENT_PACKAGE_SOURCE_DIR;CMAKE_TOP_PACKAGE_NAME;CMAKE_TOP_PACKAGE_SOURCE_DIR" ^
   "0;00;%%PROJECT_NAME%%;%%PROJECT_ROOT_ESCAPED%%;%%PROJECT_NAME%%;%%PROJECT_ROOT_ESCAPED%%" ^
@@ -148,7 +150,7 @@ if exist "%CMAKE_BUILD_ROOT%/multiconfig.tag" (
   ) >&2
 )
 
-if not exist "%CMAKE_BUILD_ROOT%" mkdir "%CMAKE_BUILD_ROOT%"
+if not exist "%CMAKE_BUILD_ROOT%\" mkdir "%CMAKE_BUILD_ROOT%"
 
 if %CMAKE_IS_SINGLE_CONFIG%0 NEQ 0 (
   echo.> "%CMAKE_BUILD_ROOT%/singleconfig.tag"

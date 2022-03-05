@@ -66,10 +66,11 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 ## cmake builtin search paths and includes ####################################
 ###############################################################################
 
-LIST(APPEND CMAKE_MODULE_PATH "${TACKLELIB_CMAKE_ROOT}")
-
 # cmake extension variables, must be before the first include
 #set(TACKLELIB_ENABLE_TARGETS_EXTENSION_FUNCTION_HANDLERS 1) # 0 - macro handlers, faster; 1 - function handlers, slower
+
+# low level initialization
+include(${CMAKE_CURRENT_LIST_DIR}/__init__/__init__.cmake)
 
 include(tacklelib/Project)
 include(tacklelib/EnableTargetsExtension)
@@ -130,6 +131,10 @@ set(PRINT_FLAGS_TARGET_NAMES
 set(COMMON_OPT_APP_TARGET_NAMES
   ${ALL_EXE_TARGETS}
 )
+
+# enable c++ standard usage for all targets, basically to avoid the default `--std=gnu++11` parameter for the GCC compiler
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 ###############################################################################
 ## file globbing ##############################################################
@@ -270,18 +275,12 @@ foreach(exe_target ${ALL_EXE_TARGETS})
 
   # This allows to include files relative to the root of the src directory with a <> pair
   target_include_directories(${exe_target}
-    PUBLIC
+    PRIVATE
       ${CMAKE_CURRENT_LIST_DIR}/src/_common
       ${CMAKE_CURRENT_LIST_DIR}/src
-      ${CMAKE_CURRENT_LIST_DIR}/includes
       ${Boost_INCLUDE_DIRS}
-  )
-
-  target_include_directories(${exe_target}
-    PRIVATE
-      ${CMAKE_CURRENT_LIST_DIR}
     PUBLIC
-      ${CMAKE_CURRENT_LIST_DIR}/include
+      ${CMAKE_CURRENT_LIST_DIR}/includes
   )
 
   if (TACKLELIB_ROOT)
@@ -319,7 +318,7 @@ foreach(exe_target ${ALL_EXE_TARGETS})
     if (BOOST_ALL_NO_LIB)
       tkl_add_target_compile_definitions(${exe_target} *
         PUBLIC
-          BOOST_ALL_NO_LIB
+          BOOST_ALL_NO_LIB                    # Disable auto-linking
       )
     endif()
 
@@ -339,9 +338,23 @@ foreach(exe_target ${ALL_EXE_TARGETS})
   endif()
 
   if (WIN32)
+    if (${CMAKE_SIZEOF_VOID_P} EQUAL "8")
+      tkl_add_target_compile_definitions(${exe_target} *
+        PRIVATE
+          _AMD64_ # in case of build x64 is required from Windows SDK: `Windows Kits\8.1\Include\shared\stralign.h(120): warning C4090: 'argument': different '__unaligned' qualifiers`
+      )
+    else()
+      tkl_add_target_compile_definitions(${exe_target} *
+        PRIVATE
+          _X86_ # in case of dynamic library linkage which is required from Windows SDK: `fatal error C1189: #error:  "No Target Architecture"`
+      )
+    endif()
+  endif()
+
+  if (${CMAKE_SIZEOF_VOID_P} EQUAL "8")
     tkl_add_target_compile_definitions(${exe_target} *
       PRIVATE
-        _X86_ # in case of dynamic library linkage which is required from Windows SDK: `fatal error C1189: #error:  "No Target Architecture"`
+        WIN64
     )
   endif()
 
@@ -488,10 +501,11 @@ install(
 set(install_code_dirs "")
 
 if (BOOST_ROOT)
-  list(APPEND install_code_dirs "${Boost_LIBRARY_DIRS}")
+  list(APPEND install_code_dirs ${Boost_LIBRARY_DIRS})
 endif()
 
 # must be after all `install` commands!
+#
 foreach(exe_target ${ALL_EXE_TARGETS})
   install(CODE "
     include(BundleUtilities)
@@ -559,3 +573,9 @@ tkl_set_target_folder(TACKLELIB_ROOT * * .       UTILITY     . _3dparty/utility/
 tkl_set_target_folder(TACKLELIB_ROOT * * "tests" EXECUTABLE  . _3dparty/utility/tacklelib/exe)
 tkl_set_target_folder(TACKLELIB_ROOT * * .       "SHARED_LIBRARY;STATIC_LIBRARY" . _3dparty/utility/tacklelib/lib)
 tkl_set_target_folder(TACKLELIB_ROOT * "tests" . * . _3dparty/utility/tacklelib/tests)
+
+###############################################################################
+## updated global flags and post process target properties ####################
+###############################################################################
+
+tkl_print_global_flags(*)

@@ -8,6 +8,7 @@ BuildTools/__init__/__init__.bat -text
 /README.md -text
 /README_EN.txt -text
 __init__/__init__.bat -text
+__init__/__init__.cmake -text
 __init__/canonical_path.bat -text
 __init__/declare_builtins.bat -text
 _build/02_generate_config.bat -text

@@ -58,7 +58,7 @@
 
 # has to be here because the architecture value is not yet known in the system variables configuration file
 top CMAKE_GENERATOR_PLATFORM:WIN:::X86=Win32
-top CMAKE_GENERATOR_PLATFORM:WIN:::X64=Win64
+top CMAKE_GENERATOR_PLATFORM:WIN:::X64=x64
 
 top CMAKE_CXX_STANDARD=11
 
@@ -105,6 +105,8 @@ local BOOST_SCOPE_EXIT_CONFIG_USE_LAMBDAS=ON
 
 #
 #top Boost_DEBUG=ON
+
+local BOOST_COMPONENTS=(chrono filesystem iostreams system date_time program_options)
 
 # fftw
 

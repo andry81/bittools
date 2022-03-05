@@ -1,3 +1,7 @@
+2022.03.05:
+* fixed: build with the last dependencies
+* changed: back merge with last changes
+
 2022.02.19:
 * fixed: _config, CMakeLists.txt: build cleanup
 * fixed: src: gencrctbl, mirrorfile, xorfile: build fixup

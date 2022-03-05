@@ -262,8 +262,8 @@ inline void write_syncseq(
         memcpy(buf_out, buf_in, byte_size_before_offset);
     }
     // optimization
-    else {
-        *(uint64_t *)buf_out[0] = *(uint64_t *)buf_in[0];
+    else if (byte_size_before_offset) {
+        *(uint64_t *)buf_out = *(uint64_t *)buf_in;
     }
 
     uint64_t from_first_bit_offset = first_offset;

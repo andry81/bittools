@@ -580,7 +580,7 @@ int _tmain(int argc, const TCHAR * argv[])
                     return 255;
                 }
 
-                if (g_options.input_file.empty() || !utility::is_regular_file(g_options.input_file, false)) {
+                if (g_options.input_file.empty() || !utility::is_regular_file(g_options.input_file, IF_UNICODE(std::codecvt_utf8, std::codecvt_utf16)<wchar_t>{}, false)) {
                     _ftprintf(stderr, _T("error: input file is not found: \"%s\"\n"), g_options.input_file.c_str());
                     return 255;
                 }
@@ -588,7 +588,7 @@ int _tmain(int argc, const TCHAR * argv[])
                 tackle::file_handle<TCHAR> tee_file_in_handle;
 
                 if (!g_options.tee_input_file.empty()) {
-                    tee_file_in_handle = utility::open_file(g_options.tee_input_file, _T("wb"), utility::SharedAccess_DenyWrite, 0, 0);
+                    tee_file_in_handle = utility::open_file(g_options.tee_input_file, IF_UNICODE(std::codecvt_utf8, std::codecvt_utf16)<wchar_t>{}, _T("wb"), utility::SharedAccess_DenyWrite, 0, 0);
                     if (!tee_file_in_handle.get()) {
                         _ftprintf(stderr, _T("error: could not open output tee file for the input: \"%s\"\n"), g_options.tee_input_file.c_str());
                         return 255;
@@ -604,7 +604,7 @@ int _tmain(int argc, const TCHAR * argv[])
                         g_options.output_file_dir = utility::get_current_path(false, tackle::tag_native_path_tstring{});
                     }
 
-                    if (g_options.output_file_dir != _T(".") && !utility::is_directory_path(g_options.output_file_dir, false)) {
+                    if (g_options.output_file_dir != _T(".") && !utility::is_directory_path(g_options.output_file_dir, IF_UNICODE(std::codecvt_utf8, std::codecvt_utf16) <wchar_t>{}, false)) {
                         _ftprintf(stderr, _T("error: output directory path is not a directory: path=\"%s\"\n"), g_options.output_file_dir.c_str());
                         return 255;
                     }
@@ -617,14 +617,16 @@ int _tmain(int argc, const TCHAR * argv[])
                         return 255;
                     }
 
-                    if (utility::is_regular_file(g_options.output_file, false) && utility::is_same_file(g_options.input_file, g_options.output_file, false)) {
+                    if (utility::is_regular_file(g_options.output_file, IF_UNICODE(std::codecvt_utf8, std::codecvt_utf16)<wchar_t>{}, false) &&
+                        utility::is_same_file(g_options.input_file, g_options.output_file, IF_UNICODE(std::codecvt_utf8, std::codecvt_utf16)<wchar_t>{}, IF_UNICODE(std::codecvt_utf8, std::codecvt_utf16)<wchar_t>{}, false)) {
                         _ftprintf(stderr, _T("error: output file must not be input file: \"%s\"\n"), g_options.output_file.c_str());
                         return 255;
                     }
                 } break;
                 }
 
-                const tackle::file_handle<TCHAR> file_in_handle = utility::open_file(g_options.input_file, _T("rb"), utility::SharedAccess_DenyWrite);
+                const tackle::file_handle<TCHAR> file_in_handle =
+                    utility::open_file(g_options.input_file, IF_UNICODE(std::codecvt_utf8, std::codecvt_utf16)<wchar_t>{}, _T("rb"), utility::SharedAccess_DenyWrite);
 
                 if (g_options.stream_bit_size) {
                     g_options.stream_byte_size = uint32_t((g_options.stream_bit_size + 7) / 8);
@@ -880,7 +882,7 @@ int _tmain(int argc, const TCHAR * argv[])
                             gen_data.stream_params.last_bit_offset = 0;
                             gen_data.shifted_bit_offset = j;
 
-                            gen_data.file_out_handle = utility::recreate_file(out_file, _T("wb"), utility::SharedAccess_DenyWrite);
+                            gen_data.file_out_handle = utility::recreate_file(out_file, IF_UNICODE(std::codecvt_utf8, std::codecvt_utf16)<wchar_t>{}, _T("wb"), utility::SharedAccess_DenyWrite);
 
                             fseek(file_in_handle.get(), 0, SEEK_SET);
                             tackle::file_reader<TCHAR>(file_in_handle, read_file_chunk).do_read(&read_file_chunk_data, { g_options.stream_byte_size }, padded_stream_byte_size);
@@ -1058,7 +1060,7 @@ int _tmain(int argc, const TCHAR * argv[])
                         BasicData{ &g_flags, &g_options, mode, tee_file_in_handle },
                         StreamParams{ padded_stream_byte_size, 0, 0 },
                         NoiseParams{},
-                        utility::recreate_file(g_options.output_file, _T("wb"), utility::SharedAccess_DenyWrite)
+                        utility::recreate_file(g_options.output_file, IF_UNICODE(std::codecvt_utf8, std::codecvt_utf16)<wchar_t>{}, _T("wb"), utility::SharedAccess_DenyWrite)
                     };
 
                     ReadFileChunkData read_file_chunk_data{ mode, &pipe_data };
