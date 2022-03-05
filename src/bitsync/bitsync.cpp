@@ -232,10 +232,11 @@ inline void write_syncseq(
     uint64_t inserted_stream_bit_size;
     uint32_t inserted_stream_byte_size;
 
-    end_offset = (std::min)(uint64_t(end_offset), stream_bit_size); // to use in math
+    // to use in math
+    end_offset = (std::min)(uint64_t(end_offset), stream_bit_size);
 
     if (insert_instead_fill && syncseq_bit_size < period) {
-        inserted_stream_bit_size = stream_bit_size + ((end_offset - first_offset - 1) / period + 1) * syncseq_bit_size;
+        inserted_stream_bit_size = stream_bit_size + ((std::min)((end_offset - first_offset - 1) / period, period_repeat) + 1) * syncseq_bit_size;
         inserted_stream_byte_size = uint32_t((inserted_stream_bit_size + 7) / 8);
     }
     // no data between overlapped synchro sequence, nothing to increase
