@@ -255,7 +255,7 @@ endif()
 
 # fftw
 
-tkl_add_target_subdirectory(FFTW_ROOT fftw _3dparty/math/fftw)
+#tkl_add_target_subdirectory(FFTW_ROOT fftw _3dparty/math/fftw)
 
 if (TARGET fftw)
   list(APPEND COMMON_OPT_APP_TARGET_NAMES fftw)

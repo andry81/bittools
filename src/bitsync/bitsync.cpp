@@ -224,6 +224,7 @@ inline void write_syncseq(
 
     const uint64_t stream_bit_size = size * 8;
     assert(first_offset < stream_bit_size);
+    assert(first_offset < end_offset);
 
     const uint64_t syncseq_mask64 = uint32_t(~(~uint64_t(0) << syncseq_bit_size));
     const uint64_t syncseq_bytes = syncseq_int32 & uint32_t(syncseq_mask64);
@@ -231,8 +232,10 @@ inline void write_syncseq(
     uint64_t inserted_stream_bit_size;
     uint32_t inserted_stream_byte_size;
 
+    end_offset = (std::min)(uint64_t(end_offset), stream_bit_size); // to use in math
+
     if (insert_instead_fill && syncseq_bit_size < period) {
-        inserted_stream_bit_size = stream_bit_size + ((stream_bit_size - first_offset - 1) / period + 1) * syncseq_bit_size;
+        inserted_stream_bit_size = stream_bit_size + ((end_offset - first_offset - 1) / period + 1) * syncseq_bit_size;
         inserted_stream_byte_size = uint32_t((inserted_stream_bit_size + 7) / 8);
     }
     // no data between overlapped synchro sequence, nothing to increase
@@ -267,7 +270,7 @@ inline void write_syncseq(
     }
 
     uint64_t from_first_bit_offset = first_offset;
-    uint64_t from_end_bit_offset = (std::min)(uint64_t(end_offset), stream_bit_size);
+    uint64_t from_end_bit_offset = end_offset;
 
     uint64_t to_bit_offset = first_offset;
 
@@ -281,7 +284,7 @@ inline void write_syncseq(
 
         while (from_first_bit_offset < from_end_bit_offset && to_bit_offset < inserted_stream_bit_size) {
             syncseq_bit_size_to_copy = (std::min)(inserted_stream_bit_size - to_bit_offset, uint64_t(syncseq_bit_size));    // `to` limit
-            syncseq_bit_size_to_copy = (std::min)(from_end_bit_offset - from_first_bit_offset, syncseq_bit_size_to_copy);   // `from` limit
+            syncseq_bit_size_to_copy = (std::min)(stream_bit_size - from_first_bit_offset, syncseq_bit_size_to_copy);       // `from` limit
 
             utility::memcpy_bitwise64(buf_out, to_bit_offset, (uint8_t*)&syncseq_bytes, 0, syncseq_bit_size_to_copy);
 
@@ -320,7 +323,7 @@ inline void write_syncseq(
     else {
         while (from_first_bit_offset < from_end_bit_offset && to_bit_offset < inserted_stream_bit_size) {
             syncseq_bit_size_to_copy = (std::min)(inserted_stream_bit_size - to_bit_offset, uint64_t(syncseq_bit_size));    // `to` limit
-            syncseq_bit_size_to_copy = (std::min)(from_end_bit_offset - from_first_bit_offset, syncseq_bit_size_to_copy);   // `from` limit
+            syncseq_bit_size_to_copy = (std::min)(stream_bit_size - from_first_bit_offset, syncseq_bit_size_to_copy);       // `from` limit
 
             if (syncseq_bit_size_to_copy) {
                 utility::memcpy_bitwise64(buf_out, to_bit_offset, (uint8_t*)&syncseq_bytes, 0, uint32_t(syncseq_bit_size_to_copy));

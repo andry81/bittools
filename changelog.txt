@@ -1,4 +1,8 @@
 2022.03.05:
+* fixed: src/bitsync: `/outss` option usage fixup
+* changed: CMakeLists.txt: removed fftw library build
+
+2022.03.05:
 * fixed: build with the last dependencies
 * changed: back merge with last changes
 
