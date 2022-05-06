@@ -2,9 +2,8 @@
 
 <h4 align="center">
 Utilities for operations over bit stream files.<br/><br/>
-</h4>
 
-<h4 align="center">The latest version is here: https://sf.net/p/bittools</h4>
+The latest version is here: https://sf.net/p/bittools</h4>
 
 ##
 
