@@ -5,10 +5,8 @@
 #include <inttypes.h>
 
 
-#define DEFAULT_SYNCSEQ_MAXIMAL_REPEAT_PERIOD   16
-#define DEFAULT_MAX_PERIODS_IN_OFFSET           16
-
 const TCHAR * g_flags_to_parse_arr[] = {
+    _T("/impl-token"), _T("/impl-mwsocm"), _T("/impl-msocmd"), _T("/impl-acocv"),
     _T("/stream-byte-size"), _T("/s"),
     _T("/stream-bit-size"), _T("/si"),
     _T("/syncseq-bit-size"), _T("/q"),
@@ -17,15 +15,21 @@ const TCHAR * g_flags_to_parse_arr[] = {
     _T("/syncseq-max-repeat"), _T("/rmax"),
     _T("/stream-min-period"), _T("/spmin"),
     _T("/stream-max-period"), _T("/spmax"),
-    _T("/max-periods-in-offset"), _T("/maxpio"),
+    _T("/max-periods-in-offset"), _T("/max-pio"),
+    _T("/max-corr-values-per-period"), _T("/max-cvpp"),
     _T("/gen-token"), _T("/g"),
     _T("/gen-input-noise"), _T("/inn"),
     _T("/insert-output-syncseq"), _T("/outss"),
     _T("/fill-output-syncseq"), _T("/outssf"),
     _T("/tee-input"),
-    _T("/autocorr-min"),
-    _T("/autocorr-mean-buf-max-size-mb"),
-    _T("/disable-calc-autocorr-mean"),
+    _T("/corr-min"),
+    _T("/corr-mean-min"),
+    _T("/skip-calc-on-filtered-corr-value-use"), _T("/skip-calc-on-fcvu"),
+    _T("/skip-max-weighted-sum-of-corr-mean-calc"), _T("/skip-mwsocm-calc"),
+    _T("/use-max-corr-mean"),
+    _T("/sort-at-first-by-max-corr-mean"),
+    _T("/return-sorted-result"),
+    _T("/corr-mean-buf-max-size-mb")
 };
 
 const TCHAR * g_empty_flags_arr[] = {
@@ -35,6 +39,15 @@ const TCHAR * g_empty_flags_arr[] = {
 inline int invalid_format_flag(const TCHAR * arg)
 {
     _tprintf(_T("flag format is invalid: \"%s\"\n"), arg);
+    return 255;
+}
+
+inline int invalid_format_flag_message(const TCHAR * fmt, ...)
+{
+    va_list vl;
+    va_start(vl, fmt);
+    tvprintf(fmt, vl);
+    va_end(vl);
     return 255;
 }
 
@@ -69,7 +82,10 @@ inline bool is_arg_equal_to(const TCHAR * arg, const TCHAR (& cmp_arg)[N])
 //   3 - argument is excluded without any checks
 //
 template <size_t M, size_t N>
-int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * argv[], int & arg_offset, Flags & flags, Options & options, const TCHAR * (& include_filter_arr)[N], const TCHAR * (& exclude_filter_arr)[M])
+int parse_arg_to_option(
+    int & error, const TCHAR * arg, int argc, const TCHAR * argv[], int & arg_offset, Flags & flags, Options & options,
+    const TCHAR * (& include_filter_arr)[N], const TCHAR * (& exclude_filter_arr)[M],
+    std::vector<std::tstring> & mod_flags)
 {
     // intercept here specific global variables accidental usage instead of local variables
     static struct {} g_options;
@@ -86,6 +102,72 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         }
     }
 
+    if (is_arg_equal_to(arg, _T("/impl-token"))) {
+        arg_offset += 1;
+        if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
+            if (is_arg_in_filter(start_arg, include_filter_arr)) {
+                if (options.impl_token != Impl::unknown) {
+                    return invalid_format_flag_message(_T("`/impl-token` option is mixed with `/impl-opt*`\n"));
+                }
+
+                if (is_arg_equal_to(arg, _T("max-weighted-sum-of-corr-mean")) || is_arg_equal_to(arg, _T("max-input-noise-resistence"))) {
+                    options.impl_token_str = arg;
+                    options.impl_token = Impl::max_weighted_sum_of_corr_mean;
+                    return 1;
+                }
+                else if (is_arg_equal_to(arg, _T("min-sum-of-corr-mean-deviat"))) {
+                    options.impl_token_str = arg;
+                    options.impl_token = Impl::min_sum_of_corr_mean_deviat;
+                    return 1;
+                }
+                else if (is_arg_equal_to(arg, _T("autocorr-of-corr-values")) || is_arg_equal_to(arg, _T("max-input-performance"))) {
+                    options.impl_token_str = arg;
+                    options.impl_token = Impl::autocorr_of_corr_values;
+                    return 1;
+                }
+                else {
+                    error = invalid_format_flag(start_arg);
+                    return 2;
+                }
+            }
+            return 0;
+        }
+        else error = invalid_format_flag(start_arg);
+        return 2;
+    }
+    if (is_arg_equal_to(arg, _T("/impl-mwsocm"))) {
+        if (is_arg_in_filter(start_arg, include_filter_arr)) {
+            if (options.impl_token != Impl::unknown) {
+                return invalid_format_flag_message(_T("`/impl-token` option is mixed with `/impl-opt*`\n"));
+            }
+            options.impl_token_str = _T("max-weighted-sum-of-corr-mean");
+            options.impl_token = Impl::max_weighted_sum_of_corr_mean;
+            return 1;
+        }
+        return 0;
+    }
+    if (is_arg_equal_to(arg, _T("/impl-msocmd"))) {
+        if (is_arg_in_filter(start_arg, include_filter_arr)) {
+            if (options.impl_token != Impl::unknown) {
+                return invalid_format_flag_message(_T("`/impl-token` option is mixed with `/impl-opt*`\n"));
+            }
+            options.impl_token_str = _T("min-sum-of-corr-mean-deviat");
+            options.impl_token = Impl::min_sum_of_corr_mean_deviat;
+            return 1;
+        }
+        return 0;
+    }
+    if (is_arg_equal_to(arg, _T("/impl-acocv"))) {
+        if (is_arg_in_filter(start_arg, include_filter_arr)) {
+            if (options.impl_token != Impl::unknown) {
+                return invalid_format_flag_message(_T("`/impl-token` option is mixed with `/impl-opt*`\n"));
+            }
+            options.impl_token_str = _T("autocorr-of-corr-values");
+            options.impl_token = Impl::autocorr_of_corr_values;
+            return 1;
+        }
+        return 0;
+    }
     if (is_arg_equal_to(arg, _T("/stream-byte-size")) || is_arg_equal_to(arg, _T("/s"))) {
         arg_offset += 1;
         if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
@@ -134,11 +216,23 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         else error = invalid_format_flag(start_arg);
         return 2;
     }
-    if (is_arg_equal_to(arg, _T("/max-periods-in-offset")) || is_arg_equal_to(arg, _T("/maxpio"))) {
+    if (is_arg_equal_to(arg, _T("/max-periods-in-offset")) || is_arg_equal_to(arg, _T("/max-pio"))) {
         arg_offset += 1;
         if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
             if (is_arg_in_filter(start_arg, include_filter_arr)) {
                 options.max_periods_in_offset = _ttoi(arg);
+                return 1;
+            }
+            return 0;
+        }
+        else error = invalid_format_flag(start_arg);
+        return 2;
+    }
+    if (is_arg_equal_to(arg, _T("/max-corr-values-per-period")) || is_arg_equal_to(arg, _T("/max-cvpp"))) {
+        arg_offset += 1;
+        if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
+            if (is_arg_in_filter(start_arg, include_filter_arr)) {
+                options.max_corr_values_per_period = _ttoi(arg);
                 return 1;
             }
             return 0;
@@ -281,11 +375,11 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         else error = invalid_format_flag(start_arg);
         return 2;
     }
-    if (is_arg_equal_to(arg, _T("/autocorr-min"))) {
+    if (is_arg_equal_to(arg, _T("/corr-min"))) {
         arg_offset += 1;
         if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
             if (is_arg_in_filter(start_arg, include_filter_arr)) {
-                options.autocorr_min = utility::str_to_float(std::tstring{ arg });
+                options.corr_min = utility::str_to_float(std::tstring{ arg });
                 return 1;
             }
             return 0;
@@ -293,11 +387,11 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         else error = invalid_format_flag(start_arg);
         return 2;
     }
-    if (is_arg_equal_to(arg, _T("/autocorr-mean-buf-max-size-mb"))) {
+    if (is_arg_equal_to(arg, _T("/corr-mean-min"))) {
         arg_offset += 1;
         if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
             if (is_arg_in_filter(start_arg, include_filter_arr)) {
-                options.autocorr_mean_buf_max_size_mb = _ttoi(arg);
+                options.corr_mean_min = utility::str_to_float(std::tstring{ arg });
                 return 1;
             }
             return 0;
@@ -305,12 +399,49 @@ int parse_arg_to_option(int & error, const TCHAR * arg, int argc, const TCHAR * 
         else error = invalid_format_flag(start_arg);
         return 2;
     }
-    if (is_arg_equal_to(arg, _T("/disable-calc-autocorr-mean"))) {
+    if (is_arg_equal_to(arg, _T("/skip-calc-on-filtered-corr-value-use")) || is_arg_equal_to(arg, _T("/skip-calc-on-fcvu"))) {
         if (is_arg_in_filter(start_arg, include_filter_arr)) {
-            flags.disable_calc_autocorr_mean = true;
+            flags.skip_calc_on_filtered_corr_value_use = true;
+            mod_flags.push_back(arg);
             return 1;
         }
         return 0;
+    }
+    if (is_arg_equal_to(arg, _T("/skip-max-weighted-sum-of-corr-mean-calc")) || is_arg_equal_to(arg, _T("/skip-mwsocm-calc")) || is_arg_equal_to(arg, _T("/use-max-corr-mean"))) {
+        if (is_arg_in_filter(start_arg, include_filter_arr)) {
+            flags.skip_max_weighted_sum_of_corr_mean_calc = true;
+            mod_flags.push_back(arg);
+            return 1;
+        }
+        return 0;
+    }
+    if (is_arg_equal_to(arg, _T("/sort-at-first-by-max-corr-mean"))) {
+        if (is_arg_in_filter(start_arg, include_filter_arr)) {
+            flags.sort_at_first_by_max_corr_mean = true;
+            mod_flags.push_back(arg);
+            return 1;
+        }
+        return 0;
+    }
+    if (is_arg_equal_to(arg, _T("/return-sorted-result"))) {
+        if (is_arg_in_filter(start_arg, include_filter_arr)) {
+            flags.return_sorted_result = true;
+            mod_flags.push_back(arg);
+            return 1;
+        }
+        return 0;
+    }
+    if (is_arg_equal_to(arg, _T("/corr-mean-buf-max-size-mb"))) {
+        arg_offset += 1;
+        if (argc >= arg_offset + 1 && (arg = argv[arg_offset])) {
+            if (is_arg_in_filter(start_arg, include_filter_arr)) {
+                options.corr_mean_buf_max_size_mb = _ttoi(arg);
+                return 1;
+            }
+            return 0;
+        }
+        else error = invalid_format_flag(start_arg);
+        return 2;
     }
 
     return -1;
@@ -331,6 +462,11 @@ int _tmain(int argc, const TCHAR * argv[])
     }
 
     int ret = 127; // not found
+
+    // algorithm modification flags
+    std::vector<std::tstring> mod_flags;
+
+    mod_flags.reserve(16);
 
     // NOTE:
     //  lambda to bypass msvc error: `error C2712: Cannot use __try in functions that require object unwinding`
@@ -374,7 +510,7 @@ int _tmain(int argc, const TCHAR * argv[])
                         break;
                     }
 
-                    if ((parse_result = parse_arg_to_option(parse_error, arg, argc, argv, arg_offset, g_flags, g_options, g_flags_to_parse_arr, g_empty_flags_arr)) >= 0) {
+                    if ((parse_result = parse_arg_to_option(parse_error, arg, argc, argv, arg_offset, g_flags, g_options, g_flags_to_parse_arr, g_empty_flags_arr, mod_flags)) >= 0) {
                         if (!parse_result && !parse_error) {
                             parse_error = invalid_format_flag(arg);
                         }
@@ -416,6 +552,16 @@ int _tmain(int argc, const TCHAR * argv[])
                 if (mode == Mode_None) {
                     _ftprintf(stderr, _T("error: mode is not known: mode=%s\n"), g_options.mode.c_str());
                     return 255;
+                }
+
+                switch (mode) {
+                case Mode_Sync:
+                {
+                    if (g_options.impl_token == Impl::unknown) {
+                        _ftprintf(stderr, _T("error: the implementation (`/impl-*` options) must be selected explicitly for the mode: mode=%s\n"), g_options.mode.c_str());
+                        return 255;
+                    }
+                } break;
                 }
 
                 switch (mode) {
@@ -553,8 +699,8 @@ int _tmain(int argc, const TCHAR * argv[])
                         return 255;
                     }
 
-                    if (g_options.max_periods_in_offset != math::uint32_max && !g_options.max_periods_in_offset) {
-                        _ftprintf(stderr, _T("error: max_periods_in_offset must be positive\n"));
+                    if (g_options.max_corr_values_per_period != math::uint32_max && !g_options.max_corr_values_per_period) {
+                        _ftprintf(stderr, _T("error: max_corr_values_per_period must be positive\n"));
                         return 255;
                     }
                 } break;
@@ -570,13 +716,18 @@ int _tmain(int argc, const TCHAR * argv[])
                     return 255;
                 }
 
-                if (g_options.autocorr_min < 0 || g_options.autocorr_min > 1.0) {
-                    _ftprintf(stderr, _T("error: autocorr_min must be in range [0; 1]: autocorr_min=%f\n"), g_options.autocorr_min);
+                if (g_options.corr_min < 0 || g_options.corr_min > 1.0) {
+                    _ftprintf(stderr, _T("error: corr_min must be in range [0; 1]: corr_min=%f\n"), g_options.corr_min);
                     return 255;
                 }
 
-                if (!g_options.autocorr_mean_buf_max_size_mb) {
-                    _ftprintf(stderr, _T("error: autocorr_mean_buf_max_size_mb must be positive.\n"));
+                if (g_options.corr_mean_min < 0 || g_options.corr_mean_min > 1.0) {
+                    _ftprintf(stderr, _T("error: corr_mean_min must be in range [0; 1]: corr_mean_min=%f\n"), g_options.corr_mean_min);
+                    return 255;
+                }
+
+                if (!g_options.corr_mean_buf_max_size_mb) {
+                    _ftprintf(stderr, _T("error: corr_mean_buf_max_size_mb must be positive.\n"));
                     return 255;
                 }
 
@@ -677,6 +828,10 @@ int _tmain(int argc, const TCHAR * argv[])
                 } break;
                 }
 
+                if (g_options.impl_token == Impl::unknown) {
+                    g_options.impl_token = Impl::max_weighted_sum_of_corr_mean;
+                }
+
                 if (g_options.syncseq_min_repeat == math::uint32_max) {
                     g_options.syncseq_min_repeat = 0;
                 }
@@ -694,8 +849,8 @@ int _tmain(int argc, const TCHAR * argv[])
                     g_options.stream_min_period = 0;
                 }
 
-                if (g_options.max_periods_in_offset == math::uint32_max) {
-                    g_options.max_periods_in_offset = DEFAULT_MAX_PERIODS_IN_OFFSET;
+                if (g_options.max_corr_values_per_period == math::uint32_max) {
+                    g_options.max_corr_values_per_period = DEFAULT_MAX_CORR_VALUES_PER_PERIOD;
                 }
 
                 switch (mode) {
@@ -916,20 +1071,28 @@ int _tmain(int argc, const TCHAR * argv[])
                         math::uint32_max,
                         StreamParams{ padded_stream_byte_size, 0, 0 },
                         NoiseParams{},
-                        AutocorrInParams{
+                        CorrInParams{
+                            g_options.impl_token,
                             uint64_t(g_options.stream_byte_size) * 8,
                             g_options.syncseq_bit_size,
-                            g_options.autocorr_min,
+                            g_options.corr_min,
+                            g_options.corr_mean_min,
                             g_options.syncseq_min_repeat,
                             g_options.syncseq_max_repeat,
                             g_options.max_periods_in_offset,
-                            size_t(g_options.autocorr_mean_buf_max_size_mb * 1024 * 1024) // 4GB max
+                            g_options.max_corr_values_per_period,
+                            size_t(g_options.corr_mean_buf_max_size_mb * 1024 * 1024), // 4GB max
+                            g_flags.skip_calc_on_filtered_corr_value_use,
+                            g_flags.skip_max_weighted_sum_of_corr_mean_calc,
+                            g_flags.sort_at_first_by_max_corr_mean,
+                            g_flags.return_sorted_result
                         },
-                        AutocorrInOutParams{
+                        CorrInOutParams{
                             g_options.syncseq_int32,        // CAUTION: bit length can be greater than `syncseq_bit_size`
                             g_options.stream_min_period,
                             g_options.stream_max_period
-                        }
+                        },
+                        CorrOutParams{}
                     };
 
                     ReadFileChunkData read_file_chunk_data{ mode, &sync_data };
@@ -937,117 +1100,151 @@ int _tmain(int argc, const TCHAR * argv[])
                     fseek(file_in_handle.get(), 0, SEEK_SET); // just in case
                     tackle::file_reader<TCHAR>(file_in_handle, read_file_chunk).do_read(&read_file_chunk_data, { g_options.stream_byte_size }, padded_stream_byte_size);
 
-                    if (sync_data.syncseq_bit_offset != math::uint32_max) {
-                        ret = 0;
+                    const bool is_offset_uncertain =
+                        sync_data.corr_out_params.accum_corr_mean_quit;
 
-                        const bool is_offset_uncertain =
-                            sync_data.autocorr_io_params.accum_corr_mean_quit || g_flags.disable_calc_autocorr_mean || 0.5 >= g_options.autocorr_min;
+                    const bool is_period_uncertain =
+                        sync_data.stream_params.stream_width != math::uint32_max &&
+                        sync_data.corr_out_params.accum_corr_mean_quit;
 
-                        const bool is_period_uncertain =
-                            sync_data.stream_params.stream_width != math::uint32_max &&
-                            (sync_data.autocorr_io_params.accum_corr_mean_quit || g_flags.disable_calc_autocorr_mean || 0.5 >= g_options.autocorr_min);
+                    const std::tstring offset_prefix_warn_str = is_offset_uncertain ? _T("[!] ") : _T("    ");
+                    std::tstring offset_suffix_msg_str = is_offset_uncertain ? _T(" (UNCERTAIN") : _T("");
 
-                        const std::string offset_prefix_warn_str = is_offset_uncertain ? "[!] " : "    ";
-                        std::string offset_suffix_msg_str = is_offset_uncertain ? " (UNCERTAIN" : "";
+                    const std::tstring period_prefix_warn_str = is_period_uncertain ? _T("[!] ") : _T("    ");
+                    std::tstring period_suffix_msg_str = is_period_uncertain ? _T(" (UNCERTAIN") : _T("");
 
-                        const std::string period_prefix_warn_str = is_period_uncertain ? "[!] " : "    ";
-                        std::string period_suffix_msg_str = is_period_uncertain ? " (UNCERTAIN" : "";
+                    if (sync_data.corr_out_params.accum_corr_mean_quit) {
+                        offset_suffix_msg_str += _T(": CANCELED");
+                        period_suffix_msg_str += _T(": CANCELED");
+                    }
 
-                        if (sync_data.autocorr_io_params.accum_corr_mean_quit) {
-                            offset_suffix_msg_str += ": CANCELED";
-                            period_suffix_msg_str += ": CANCELED";
-                        }
+                    if (is_offset_uncertain) {
+                        offset_suffix_msg_str += _T(")");
+                    }
+                    if (is_period_uncertain) {
+                        period_suffix_msg_str += _T(")");
+                    }
 
-                        if (is_offset_uncertain) {
-                            offset_suffix_msg_str += ")";
-                        }
-                        if (is_period_uncertain) {
-                            period_suffix_msg_str += ")";
-                        }
+                    const CONSTEXPR size_t indent_size = UTILITY_CONSTEXPR_STRING_LENGTH("                             ");
 
-                        fmt::print(
-                            "length/value:                  {:d} / {:#010x}\n"
-                            "offset:                    {:s}{:d}{:s}\n"                     // CAUTION: can be greater than stream width/period because of noise or synchronous sequence change in the input data!
+                    // mean parameters
+                    const std::tstring mean_params =
+                        sync_data.corr_out_params.accum_corr_mean_calc ?
+                            fmt::format(
+                                _T("corr mean min/used/max:        {:s} / {:#06f} / {:#06f}\n"),
+                                sync_data.corr_io_params.min_corr_mean != math::float_max ?
+                                    fmt::format(_T("{:#06f}"), sync_data.corr_io_params.min_corr_mean) :
+                                    _T("-"),
+                                sync_data.corr_io_params.used_corr_mean,
+                                sync_data.corr_io_params.max_corr_mean) :
+                            _T("");
+
+                    // mean deviation parameters
+                    const std::tstring mean_deviat_params =
+                        sync_data.corr_in_params.impl_token == Impl::min_sum_of_corr_mean_deviat ?
+                            fmt::format(
+                                _T("corr mean deviat min/max:      {:#06f} / {:#06f}\n"),
+                                sync_data.corr_io_params.min_corr_mean_deviat,
+                                sync_data.corr_io_params.max_corr_mean_deviat) :
+                            _T("");
+
+                    // mean mem parameters
+                    const std::tstring mean_mem_params =
+                        sync_data.corr_out_params.accum_corr_mean_calc ?
+                            fmt::format(
+                                _T(
+                                    "num corr means calculated:     {:d}\n"
+                                    "corr means mem accum/max:      {:d} / {:d} Kb\n"
+                                    "corr means mem used:           {:d} Kb\n"
+                                ),
+                                sync_data.corr_out_params.num_corr_means_calc,
+                                (sync_data.corr_out_params.accum_corr_mean_bytes + 1023) / 1024, sync_data.corr_in_params.max_corr_mean_bytes / 1024,
+                                (sync_data.corr_out_params.used_corr_mean_bytes + 1023) / 1024) :
+                            _T("");
+
+                    // modification flag params
+                    std::tstring mod_flag_params;
+
+                    for (const auto & mod_flag : mod_flags) {
+                        mod_flag_params += fmt::format(_T("  {:>{}s}{:s}\n"), _T(""), indent_size, mod_flag);
+                    }
+
+                    // calculate time params
+                    std::tstring calc_time_params;
+
+                    for (const auto & calc_time_phase : sync_data.corr_out_params.calc_time_phases) {
+                        calc_time_params += fmt::format(
+                            _T("  {:<{}s}{:#3d} | {:.3f}\n"),
+                            calc_time_phase.phase_name + _T(":"), indent_size,
+                            uint32_t(calc_time_phase.calc_time_all_dur_fract * 100), // rounding to lowest
+                            calc_time_phase.calc_time_dur_sec);
+                    }
+
+                    fmt::print(
+                        _T(
+                            "impl token:                    {:d} / {:s}\n"
+                            "synseq length/value:           {:d} / {:#010x}\n"
+                            "offset:                    {:s}{:s}{:s}\n"                     // CAUTION: can be greater than stream width/period because of noise or synchronous sequence change in the input data!
                             "period (width):            {:s}{:s}{:s}\n"
-                            "max periods in offset:         {:d}\n"
-                            "period in min/max:             {:d} / {:s}\n"
-                            "period out min/max:            {:d} / {:d}\n"
+                            "stream bit length:             {:d}\n"
+                            "max periods {{in}} offset:       {:d}\n"
+                            "period {{in}} min/max:           {:d} / {:s}\n"
+                            "period {{io}} min/max:           {:d} / {:d}\n"
                             "period min/used/max repeat:    {:d} / {:d} / {:d}\n"
-                            "user corr min:                 {:#06f}\n"
+                            "user corr value/mean min:      {:#06f} / {:#06f}\n"
                             "corr value min/max:            {:s} / {:#06f}\n"
-                            "corr mean min/used/max:        {:s} / {:#06f} / {:#06f}\n"     // CAUTION: used when autocorrelation mean values algorithm is enabled
-                            "num corr means calc:           {:d}\n"
-                            "num corr values iter:          {:d}\n"
-                            "corr means mem accum/max:      {:d} / {:d} Kb\n"
-                            "corr means mem used:           {:d} Kb\n"
-                            "stream bit length:             {:d}\n",
-                            g_options.syncseq_bit_size, sync_data.autocorr_io_params.syncseq_int32,
-                            offset_prefix_warn_str, sync_data.syncseq_bit_offset, offset_suffix_msg_str,
-                            period_prefix_warn_str,
-                            sync_data.stream_params.stream_width != math::uint32_max ?
-                                std::to_string(sync_data.stream_params.stream_width) :
-                                "-",
-                            period_suffix_msg_str,
-                            sync_data.autocorr_in_params.max_periods_in_offset,
-                            g_options.stream_min_period,
-                            g_options.stream_max_period != math::uint32_max ?
-                                std::to_string(g_options.stream_max_period) :
-                                "-",
-                            sync_data.autocorr_io_params.min_period, sync_data.autocorr_io_params.max_period,
-                            sync_data.autocorr_in_params.period_min_repeat, sync_data.autocorr_io_params.period_used_repeat, sync_data.autocorr_in_params.period_max_repeat,
-                            sync_data.autocorr_in_params.corr_min_value,
-                            sync_data.autocorr_io_params.min_corr_value != math::float_max ?
-                                fmt::format("{:#06f}", sync_data.autocorr_io_params.min_corr_value) :
-                                "-",
-                            sync_data.autocorr_io_params.max_corr_value,
-                            sync_data.autocorr_io_params.min_corr_mean != math::float_max ?
-                                fmt::format("{:#06f}", sync_data.autocorr_io_params.min_corr_mean) :
-                                "-",
-                            sync_data.autocorr_io_params.used_corr_mean, sync_data.autocorr_io_params.max_corr_mean,
-                            sync_data.autocorr_io_params.num_corr_means_calc, sync_data.autocorr_io_params.num_corr_values_iterated,
-                            (sync_data.autocorr_io_params.accum_corr_mean_bytes + 1023) / 1024, sync_data.autocorr_in_params.max_corr_mean_bytes / 1024,
-                            (sync_data.autocorr_io_params.used_corr_mean_bytes + 1023) / 1024,
-                            g_options.stream_byte_size * 8);
-                    }
-                    // special case, when autocorrelation mean values are not calculated but calculated other values
-                    else if (sync_data.stream_params.stream_width == math::uint32_max) {
-                        fmt::print(
-                            "length/value:                  {:d} / {:#010x}\n"
-                            "offset:                        {:s}\n"
-                            "period (width):                -\n"
-                            "max periods in offset:         {:d}\n"
-                            "period in min/max:             {:d} / {:s}\n"
-                            "period out min/max:            {:d} / {:d}\n"
-                            "period min/max repeat:         {:d} / {:d}\n"
-                            "user corr min:                 {:#06f}\n"
-                            "corr value min/used/max:       {:s} / {:#06f} / {:#06f}\n"
-                            "corr mean min/max:             {:s} / {:#06f}\n"               // CAUTION: used when autocorrelation mean values algorithm is enabled
-                            "num corr means calc:           {:d}\n"
-                            "num corr values iter:          {:d}\n"
-                            "stream bit length:             {:d}\n",
-                            g_options.syncseq_bit_size, sync_data.autocorr_io_params.syncseq_int32,
-                            sync_data.syncseq_bit_offset != math::uint32_max ?
-                                std::to_string(sync_data.syncseq_bit_offset) :
-                                "-",
-                            sync_data.autocorr_in_params.max_periods_in_offset,
-                            g_options.stream_min_period,
-                            g_options.stream_max_period != math::uint32_max ?
-                                std::to_string(g_options.stream_max_period) :
-                                "-",
-                            sync_data.autocorr_io_params.min_period, sync_data.autocorr_io_params.max_period,
-                            sync_data.autocorr_in_params.period_min_repeat, sync_data.autocorr_in_params.period_max_repeat,
-                            sync_data.autocorr_in_params.corr_min_value,
-                            sync_data.autocorr_io_params.min_corr_value != math::float_max ?
-                                fmt::format("{:#06f}", sync_data.autocorr_io_params.min_corr_value) :
-                                "-",
-                            sync_data.autocorr_io_params.used_corr_value, sync_data.autocorr_io_params.max_corr_value,
-                            sync_data.autocorr_io_params.min_corr_mean != math::float_max ?
-                                fmt::format("{:#06f}", sync_data.autocorr_io_params.min_corr_mean) :
-                                "-",
-                            sync_data.autocorr_io_params.max_corr_mean,
-                            sync_data.autocorr_io_params.num_corr_means_calc, sync_data.autocorr_io_params.num_corr_values_iterated,
-                            g_options.stream_byte_size * 8);
-                    }
+                            "{:s}"                                                          // used when correlation mean values calculation algorithm is enabled
+                            "{:s}"                                                          // used when correlation mean deviation values calculation algorithm is enabled
+                            "max corr values per period:    {:d}\n"
+                            "num corr values calculated:    {:d}\n"
+                            "num corr values iterated:      {:d}\n"
+                            "{:s}"                                                          // used when correlation mean values calculation algorithm is enabled
+                            "input noise pttn bits/prob:    {:s}\n"
+                            "{:s}{:s}"                                                      // used when algorithm modification flags is used
+                            "calc phase times {{% | sec}}:\n"
+                            "{:s}\n"
+                        ),
+                        sync_data.corr_in_params.impl_token, !g_options.impl_token_str.empty() ? g_options.impl_token_str : std::tstring{ _T("-") },
+                        g_options.syncseq_bit_size, sync_data.corr_io_params.syncseq_int32,
+                        offset_prefix_warn_str,
+                        sync_data.syncseq_bit_offset != math::uint32_max ?
+                            std::to_tstring(sync_data.syncseq_bit_offset) :
+                            _T("-"),
+                        offset_suffix_msg_str,
+                        period_prefix_warn_str,
+                        sync_data.stream_params.stream_width != math::uint32_max ?
+                            std::to_tstring(sync_data.stream_params.stream_width) :
+                            _T("-"),
+                        period_suffix_msg_str,
+                        g_options.stream_byte_size * 8,
+                        sync_data.corr_in_params.max_periods_in_offset,
+                        g_options.stream_min_period,
+                        g_options.stream_max_period != math::uint32_max ?
+                            std::to_tstring(g_options.stream_max_period) :
+                            _T("-"),
+                        sync_data.corr_io_params.min_period, sync_data.corr_io_params.max_period,
+                        sync_data.corr_in_params.period_min_repeat, sync_data.corr_io_params.period_used_repeat, sync_data.corr_in_params.period_max_repeat,
+                        sync_data.corr_in_params.corr_min, sync_data.corr_in_params.corr_mean_min,
+                        sync_data.corr_io_params.min_corr_value != math::float_max ?
+                            fmt::format(_T("{:#06f}"), sync_data.corr_io_params.min_corr_value) :
+                            _T("-"),
+                        sync_data.corr_io_params.max_corr_value,
+                        mean_params,
+                        mean_deviat_params,
+                        sync_data.corr_in_params.max_corr_values_per_period,
+                        sync_data.corr_out_params.num_corr_values_calc,
+                        sync_data.corr_out_params.num_corr_values_iterated,
+                        mean_mem_params,
+                        g_options.gen_input_noise_bit_block_size ?
+                            fmt::format(_T("{:d} / {:#03d} %"), g_options.gen_input_noise_bit_block_size, g_options.gen_input_noise_block_bit_prob) :
+                            _T("-"),
+                        !mod_flag_params.empty() ?
+                            _T("modification flags:\n") :
+                            _T(""),
+                        mod_flag_params,
+                        calc_time_params);
+
+                    ret = 0;
                 } break;
 
                 case Mode_Pipe:

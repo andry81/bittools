@@ -2,10 +2,11 @@
 [+ AppModuleName +].exe, version [+ AppMajorVer +].[+ AppMinorVer +].[+ AppRevision +], build [+ AppBuildNum +].
   Bit stream synchronization and operation utility.
 
-Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <InputFile> [<OutputFileDir> | <OutputFile>]
+Usage: [+ AppModuleName +].exe [/?] [<Flags>] [/impl-token <token>] [//] <Mode> [<BitsPerBaud>] <InputFile> [<OutputFileDir> | <OutputFile>]
        [+ AppModuleName +].exe [/?] [<Flags>] [//] sync <InputFile> [<OutputFileDir>]
        [+ AppModuleName +].exe [/?] [<Flags>] [/gen-token ...] [//] gen <BitsPerBaud> <InputFile> [<OutputFileDir>]
        [+ AppModuleName +].exe [/?] [<Flags>] [/gen-input-noise ...] [//] pipe <InputFile> <OutputFile>
+
   Description:
     /?
     This help.
@@ -14,6 +15,115 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
     Character sequence to stop parse <Flags> command line parameters.
 
     <Flags>:
+      /impl-token <token>
+        Implementation method represented as a token:
+
+        /impl-token max-weighted-sum-of-corr-mean
+        /impl-token max-input-noise-resistence
+        /impl-mwsocm
+
+          Calculate through the maximum weighted sum of correlation mean
+          values.
+
+          Algorithm:
+            Phase 1: Calculate correlation values.
+            Phase 2: Calculate correlation mean values.
+            Phase 3: Calculate maximum weighted sum of correlation mean
+                     values.
+
+          Major time complexity: N * N * ln(N)
+            , where N - stream bit length
+
+          NOTE:
+            The `/max-corr-values-per-period` option has memory consumption
+            effect and does increase the algorithm major memory complexity.
+
+          Pros:
+            * Most resistant to the input noise, can ignore at maximum ~33%
+              of noised bits per a synchro sequence length (for example, at
+              maximum ~6 bits per each 20 bits of bit stream).
+
+          Cons:
+            * Too slow to be invoked on a bit stream in a non stop mode or
+              on a bit stream with a big period (~ >10000 bits).
+            * At maximum has a greater than quadratic memory consumption, so
+              can consume too much memory and as a result by default does cut
+              off the search increasing uncertainty of a result
+              (See `/corr-mean-buf-max-size-mb` option description).
+
+          Can not be used together with another `/impl-*` options.
+
+          This is default implementation.
+
+        /impl-token min-sum-of-corr-mean-deviat
+        /impl-msocmd
+
+          Calculate through the minimum sum of correlation mean devation
+          values.
+
+          Algorithm:
+            Phase 1:   Calculate correlation values.
+            Phase 2.1: Calculate correlation mean values.
+            Phase 2.2: Calculate minimum sum of correlation mean deviation
+                       values.
+
+          Major time complexity: N * N * ln(N)
+            , where N - stream bit length
+
+          NOTE:
+            The `/max-corr-values-per-period` option has memory consumption
+            effect and does increase the algorithm major memory complexity.
+
+          Cons:
+            * Slower than implementation with calculation of maximum weighted
+              sum of correlation mean values.
+            * Not resistant to the input noise.
+
+          Left as an alternative to analize a bit stream deviation from a mean
+          values.
+
+          Can not be used together with another `/impl-*` options.
+
+        Has meaning only for these modes: sync | gen-sync.
+
+      /use-max-corr-mean
+      /skip-max-weighted-sum-of-corr-mean-calc
+      /skip-mwsocm-calc
+        Skip calculation of maximum weighted sum of correlation mean values and
+        use maximal correlation mean value instead.
+
+        Has meaning if the algorithm of maximum weighted sum of correlation
+        mean values is used.
+
+        CAUTION:
+          This flag will decrease certainty of a result (increase false
+          positive instability) in case of input noise or mixed
+          synchro sequence offset/period.
+
+      /sort-at-first-by-max-corr-mean
+        Sort at first by maximum correlation mean and at second by minimum
+        correlation mean deviation sum. By default only the sort by minimum
+        correlation mean deviation sum is used.
+
+        Has meaning if the algorithm of minimum sum of correlation mean
+        deviation values is used.
+
+        Has meaning when need to debug the algorithm for false positives.
+
+        CAUTION:
+          The first sort is limited by the size of container which takes into
+          account by `/max-corr-values-per-period` option. So the order of the
+          sort will lose of different minor elements.
+
+      /return-sorted-result
+        Do full sort of a result array by all fields instead of search and
+        return a single field array as by default.
+
+        Has meaning if the algorithm accumulating correlation values is used.
+
+        Has meaning when need to debug the algorithm for result certainty or
+        false positive instability.
+
       /stream-byte-size <size>
       /s <size>
         Stream size in bytes to process.
@@ -23,8 +133,8 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
 
         CAUTION:
           To sync must be enough to fit the real stream period, otherwise the
-          certainty of autocorrelation mean values would be not enough and the
-          calculated offset and period will be incorrect independently to the
+          certainty of a result would be not enough and the calculated offset
+          and period will be inaccurate or incorrect independently to the
           input noise.
 
       /stream-bit-size <size>
@@ -39,17 +149,17 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
       /stream-min-period <value>
       /spmin <value>
         Suggests a bit stream minimum period to start search with to calculate
-        autocorrelation mean values. Can significally decrease memory and time
-        consumption described for the `/autocorr-mean-buf-max-size-mb`
-        parameter.
+        correlation mean values or weighted correlation values.
+        Can significally decrease memory and time consumption described for
+        the `/corr-mean-buf-max-size-mb` parameter.
 
         Must be greater than `/syncseq-bit-size` parameter value, but less
         than `/stream-byte-size` parameter value multiply 8.
 
         CAUTION:
           Must be not lesser than the real stream period, otherwise the
-          certainty of autocorrelation mean values would be not enough and the
-          calculated offset and period will be incorrect independently to the
+          certainty of a result would be not enough and the calculated offset
+          and period will be inaccurate or incorrect independently to the
           input noise.
 
         Has priority over `/stream-max-period` option.
@@ -57,35 +167,71 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
       /stream-max-period <value>
       /spmax <value>
         Suggests a bit stream maximum period to start search with to calculate
-        autocorrelation mean values. Can significally decrease memory and time
-        consumption described for the `/autocorr-mean-buf-max-size-mb`
-        parameter.
+        correlation mean values or weighted correlation values.
+        Can significally decrease memory and time consumption described for
+        the `/corr-mean-buf-max-size-mb` parameter.
 
         Must be greater than `/syncseq-bit-size` parameter value and greater
         or equal than `/stream-min-period` parameter.
 
         CAUTION:
           Must be not greater than the real stream period, otherwise the
-          certainty of autocorrelation mean values would be not enough and the
-          calculated offset and period will be incorrect independently to the
+          certainty of a result would be not enough and the calculated offset
+          and period will be inaccurate or incorrect independently to the
           input noise.
 
       /max-periods-in-offset <value>
-      /maxpio <value>
+      /max-pio <value>
         Suggests maximal number of periods contained in an offset which
-        autocorrelation value is being accumulated. Can significally decrease
-        memory and time consumption described for the
-        `/autocorr-mean-buf-max-size-mb` parameter.
+        correlation value is being accumulated. Does the calculation
+        cutoff for each period when an offset becomes greater than requested
+        number of periods. Can significally decrease memory and time
+        consumption described for the `/corr-mean-buf-max-size-mb` parameter.
+
+        Has meaning if the algorithm accumulating correlation values is used.
+
+        NOTE:
+          Has different meaning opposed to `/syncseq-max-repeat` option, where
+          `/syncseq-max-repeat` describes maximum period repeats from an
+          offset, when `/max-periods-in-offset` describes maximum periods in
+          an offset (to an offset) to take offset into account.
 
         This is additional option to cut off the calculations without
-        significantly or noticeably reduce certainty of the result.
+        significantly or noticeably reduce certainty of a result. Otherwise
+        you must increase this parameter to increase calculation certainty.
 
-        Default value is 16.
+        Values:
+          -1 = no limit
+           0 = 1 period excluding first bit of 2d period
+           1 = 1 period including first bit of 2d period
+          >1 = N periods including first bit of N+1 period
+
+        Default value is `0`.
 
         CAUTION:
-          Must be enough to accumulate enough certainty of autocorrelation
-          mean values, otherwise the calculated offset and period will be
+          Must be enough to accumulate enough certainty for a result,
+          otherwise the calculated offset and period will be inaccurate or
           incorrect independently to the input noise.
+
+      /max-corr-values-per-period <value>
+      /max-cvpp <value>
+        Number of top maximum correlation values per period or correlation
+        mean values per period or correlation mean deviation sum values per
+        period, taken into account.
+
+        All values still are greater or equal than `/corr-min` option for
+        correlation values and than `/corr-mean-min` option for correlation
+        mean values (both if defined).
+
+        Has meaning if the algorithm accumulating correlation values is used.
+
+        NOTE:
+          Has effect on the algorithm major memory complexity, where a greater
+          is a more memory consumption.
+          Has effect on the algorithm minor time complexity, where a greater
+          is a more time consumption.
+
+        Default value is `16`.
 
       /syncseq-bit-size <value>
       /q <value>
@@ -102,19 +248,16 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
         Synchro sequence minimal repeat quantity to treat it as found.
         The `<value>` is an integer positive 32-bit number.
 
-        NOTE:
+        Has meaning if the algorithm accumulating correlation values is used.
+
+        CAUTION:
           The stream size should be enough to make requested repeats
           because each succeeded repeat does make at least of in distance of a
           stable stream period. You must proportionally increase stream size
           because repeat value decreases stream search length proportionally,
-          otherwise the certainty of autocorrelation mean values would be not
-          enough and the calculated offset and period will be incorrect
-          independently to the input noise.
-
-        CAUTION:
-          If the synchro sequence width is used instead of a value,
-          then the repeat option value should be enough to not result in a
-          false positive compare.
+          otherwise the certainty of a result would be not enough and the
+          calculated offset and period will be incorrect independently to the
+          input noise.
 
         Has priority over `/syncseq-max-repeat` option.
 
@@ -123,11 +266,18 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
         Synchro sequence maximal repeat quantity to search for.
         The `<value>` is an integer positive 32-bit number.
 
-        Default value is 16 but is not less than the mimimal repeat quantity.
+        NOTE:
+          Has different meaning opposed to `/max-periods-in-offset` option,
+          where `/syncseq-max-repeat` describes maximum period repeats for an
+          offset, when `/max-periods-in-offset` describes maximum periods in
+          an offset to take offset into account.
 
         CAUTION:
-          In case of a big value can slow down the autocorrelation mean values
-          calculation.
+          In case of a big value can slow down the correlation mean values
+          calculation (if is used).
+
+        Default value is `16` but is not less than the mimimal repeat
+        quantity.
 
       /gen-token <token>
       /g <token>
@@ -182,50 +332,55 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
         Duplicate input into <file>.
         Can be used to output the noised input.
 
-      /autocorr-min <value>
-        Autocorrelation minimum value to treat it as certain.
-        Can filter out uncertain offset and period result if a found
-        autocorrelation value or autocorrelation  mean value is less.
+      /corr-min <value>
+        Correlation minimum floating point value to treat it as certain.
+        Does filter out uncertain offset and period result if a found
+        correlation value is less.
 
-        If the autocorrelation mean values algorithm is disabled, then used as
-        minimum for an autocorrelation value.
+        Must be in range [0.0; 1.0].
 
-        Must be in range [0; 1].
+        Default value is `0.65`.
 
-        CAUTION:
-          If the parameter is defined, then a set of correlation values does
-          use for each period.
-          If the parameter is not defined, then the only maximum correlation
-          value does use for each period, which means the calculated result
-          may become uncertain.
+      /corr-mean-min <value>
+        Correlation mean minimum floating point value to treat it as certain.
+        Does filter out uncertain offset and period result if a found
+        correlation mean value is less.
 
-      /autocorr-mean-buf-max-size-mb <value>
-        Maximum buffer size in megabytes to store calculated autocorrelation
-        mean values. Basically needs (T - TMIN) ^ 2 * 24 bytes of the buffer
-        to calculate values with enough certainty, where:
+        Has meaning if the algorithm accumulating correlation values is used.
+
+        NOTE:
+          The `/max-corr-values-per-period` option here takes into account the
+          number of maximum correlation mean values for each period.
+
+        Must be in range [0.0; 1.0].
+
+        Default value is `0.81`.
+
+      /skip-calc-on-filtered-corr-value-use
+      /skip-calc-on-fcvu
+        Skip calculation if a filtered correlation value is used (filtered by
+        `/corr-min` option).
+
+        Has meaning if the algorithm accumulating correlation values is used.
+
+      /corr-mean-buf-max-size-mb <value>
+        Maximum buffer size in megabytes to store calculated correlation mean
+        values. Basically needs (T - TMIN) ^ 2 * 24 bytes of the buffer to
+        calculate values with enough certainty, where:
 
           T     - real period of a bit stream greater than `/syncseq-bit-size`
                   parameter.
           TMIN  - value of `/stream-min-period` parameter or value of
                   `/syncseq-bit-size` parameter.
 
+        Has meaning if the algorithm accumulating correlation values is used.
+
         CAUTION:
-          If the buffer is not enough, then the certainty of autocorrelation
-          mean values would be not enough and the calculated offset and period
-          may be incorrect independently to the input noise.
+          If the buffer is not enough, then the certainty of correlation mean
+          values would be not enough and the calculated offset and period may
+          be inaccurate or incorrect independently to the input noise.
 
         Default value is 400MB.
-
-      /disable-calc-autocorr-mean
-        Disable autocorrelation mean values calculation.
-        By disabling that algorithm does increase uncertainty level of found
-        offset within the input with noise, but can avoid consumption of much
-        memory and time to compute it.
-        Use it only for low levels of noise.
-
-        CAUTION:
-          Period search in case of disabled autocorrelation mean calculation
-          is not implemented.
 
     If `/stream-byte-size` option is not used, then the whole input is read
     but less than 2^32 bytes.
@@ -252,7 +407,6 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [//] <Mode> [<BitsPerBaud>] <Input
 
     <OutputFile>
       Output file path for single output file.
-
 
   Pipeline variants:
 

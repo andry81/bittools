@@ -1,3 +1,27 @@
+2022.05.30:
+* fixed: src/bitsync: `/max-periods-in-offset` incorrect skip
+* new: src/bitsync: added algorithm with mean deviation calculation
+* new: src/bitsync: added `/impl-token` and `/impl-*` options and flags to select between 3 algorithms
+* new: src/bitsync: `/max-corr-values-per-period`, `/max-cvpp` options to select a set of top maximum correlation values or a set of top maximum correlation mean values per period depending on the algorithm is used
+* new: src/bitsync: `/corr-min` to cut off minimal correlation values
+* new: src/bitsync: `/skip-calc-on-filtered-corr-value-use`, `/skip-calc-on-fcvu` flags to skip part of calculation where being used a skipped correlation value
+* new: src/bitsync: `/skip-max-weighted-sum-of-corr-mean-calc`, `/skip-mwsocm-calc`, `/use-max-corr-mean` flags to skip weighted means sum calculation and use maximum mean value instead
+* new: src/bitsync: `/sort-at-first-by-max-corr-mean` flag to sort by maximum correlation mean at first instead of sort by minimum correlation mean deviations sum as by default for the algorithm with mean deviation calculation
+* new: src/bitsync: `/return-sorted-result` flag to full sort the output result instead of search and return a single value
+* new: src/bitsync: added built in time measuring of algorithm calculation phase
+* new: src/bitsync: print more detailed information including algorithm calculation phase times
+* changed: src/bitsync: rewrited previous algorithm implementation to increase overall performance (left as default algorithm)
+* changed: src/bitsync: renamed `/autocorr-min` to `/corr-mean-min` to cut off minimal correlation mean values
+* changed: src/bitsync: removed `/disable-calc-autocorr-mean` flag as replaced by more explicit `/impl-*` options and flags
+* changed: src/bitsync: set `/max-periods-in-offset` default value to 0 for maximum performance
+* changed: src/bitsync: improved `max-weighted-sum-of-corr-mean` speed for default parameters
+* changed: samples/bitstreams/README.md, README.md: readme update
+* refactor: src/bitsync: `deploy/bitstreams` moved into `samples/bitstreams`
+* refactor: src/bitsync: global refactor
+
+2022.05.12:
+* refactor: src/bitsync: removed all references and names referred to the autocorrelation as the main algorithm is just the correlation
+
 2022.05.07:
 * changed: README.md: replaced the rest of links by content cache links, removed `seeyoufarm` hits counter as not actual anymore
 
@@ -6,6 +30,9 @@
 
 2022.04.18:
 * changed: README.md: content moved into `andry81-cache/andry81--gh-content-cache` repository
+
+2022.04.12:
+* fixed: src/bitsync/autocorrelation.cpp: Wolfram Alpha details fix
 
 2022.04.03:
 * new: README.md, .github/FUNDING.yml: shared donate link and badge

@@ -46,11 +46,14 @@ Options::Options()
     //  * all min values based on a synchro sequence bit length
     //  * all max values based on a stream bit length
     //
+
+    impl_token                          = Impl::unknown;
     stream_byte_size                    = 0;
     stream_bit_size                     = 0;
     stream_min_period                   = math::uint32_max;
     stream_max_period                   = math::uint32_max;
-    max_periods_in_offset               = math::uint32_max;
+    max_periods_in_offset               = DEFAULT_MAX_PERIODS_IN_OFFSET;
+    max_corr_values_per_period          = math::uint32_max;
     syncseq_bit_size                    = 0;
     syncseq_int32                       = 0;
     syncseq_min_repeat                  = math::uint32_max;
@@ -62,8 +65,9 @@ Options::Options()
     insert_output_syncseq_end_offset    = math::uint32_max;
     insert_output_syncseq_period        = 0;
     insert_output_syncseq_period_repeat = math::uint32_max;
-    autocorr_min                        = 0;
-    autocorr_mean_buf_max_size_mb       = 400; // 400 Mb is default
+    corr_min                            = DEFAULT_CORR_MIN;
+    corr_mean_min                       = DEFAULT_CORR_MEAN_MIN;
+    corr_mean_buf_max_size_mb           = DEFAULT_CORR_MEAN_BUF_MAX_SIZE_MB;
 }
 
 
@@ -233,7 +237,7 @@ inline void write_syncseq(
     uint32_t inserted_stream_byte_size;
 
     // to use in math
-    end_offset = (std::min)(uint64_t(end_offset), stream_bit_size);
+    end_offset = uint32_t((std::min)(uint64_t(end_offset), stream_bit_size));
 
     if (insert_instead_fill && syncseq_bit_size < period) {
         inserted_stream_bit_size = stream_bit_size + ((std::min)((end_offset - first_offset - 1) / period, period_repeat) + 1) * syncseq_bit_size;
@@ -576,11 +580,6 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
     // single read only
     state.break_ = true;
 
-    // Search synchro sequence in `write_buf` by sequential 32-bit blocks compare as shifted 64-bit blocks.
-    // Formula for all comparisons (K) of N 32-bit blocks in a stream:
-    //  If N-even => K = ((N + 1) * N / 2 - 1) * 32
-    //  If N-odd  => K = ((N + 1) / 2 * N - 1) * 32
-
     // Buffer is already padded to 3 bytes remainder to be able to read and shift the last 8-bit block as 32-bit block.
     //
     const uint32_t padded_stream_byte_size = data.stream_params.padded_stream_byte_size;
@@ -610,85 +609,93 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
         }
     }
 
-    // calculate synchro sequence autocorrelation values and autocorrelation mean values
+    // calculate synchro sequence correlation values and correlation mean values
 
-    std::vector<float> autocorr_values_arr;
-    std::deque<SyncseqAutocorr> autocorr_max_mean_deq;
+    data.stream_params.stream_width = math::uint32_max; // print other calculated values
 
-    calculate_syncseq_autocorrelation(
-        data.autocorr_in_params, data.autocorr_io_params,
+    std::vector<float> corr_values_arr;
+    std::vector<SyncseqCorr> corr_autocorr_arr;
+    std::deque<SyncseqCorrMean> corr_max_mean_sum_deq;
+    std::deque<SyncseqCorrMeanDeviat> corr_min_mean_deviat_sum_deq;
+
+    calculate_syncseq_correlation(
+        data.corr_in_params,
+        data.corr_io_params,
+        data.corr_out_params,
         buf,
-        autocorr_values_arr,
-        !g_flags.disable_calc_autocorr_mean ? &autocorr_max_mean_deq : nullptr);
+        corr_values_arr,
+        corr_autocorr_arr,
+        corr_max_mean_sum_deq,
+        corr_min_mean_deviat_sum_deq);
 
-    if (!g_flags.disable_calc_autocorr_mean) {
-        if (!autocorr_max_mean_deq.empty()) {
-            for (const auto & autocorr_max_mean_ref : autocorr_max_mean_deq) {
+    switch (g_options.impl_token) {
+    case Impl::max_weighted_sum_of_corr_mean: {
+        if (!corr_max_mean_sum_deq.empty()) {
+            for (const auto & corr_max_mean_sum_ref : corr_max_mean_sum_deq) {
                 // use only first periodic value
-                if (autocorr_max_mean_ref.period) {
-                    data.syncseq_bit_offset = autocorr_max_mean_ref.offset;
-                    data.stream_params.stream_width = autocorr_max_mean_ref.period;
-                    data.autocorr_io_params.used_corr_mean = autocorr_max_mean_ref.corr_mean;
-                    data.autocorr_io_params.period_used_repeat = autocorr_max_mean_ref.num_corr - 1;
+                if (corr_max_mean_sum_ref.period) {
+                    data.syncseq_bit_offset = corr_max_mean_sum_ref.offset;
+                    data.stream_params.stream_width = corr_max_mean_sum_ref.period;
+                    data.corr_io_params.used_corr_mean = corr_max_mean_sum_ref.corr_mean;
+                    data.corr_io_params.period_used_repeat = corr_max_mean_sum_ref.num_corr - 1;
                     break;
                 }
             }
         }
-        else {
-            data.stream_params.stream_width = math::uint32_max; // print other calculated values
-        }
+    } break;
 
-        float max_corr_value = 0;
-
-        for (size_t i = 0; i < autocorr_values_arr.size(); i++) {
-            const float corr_value = autocorr_values_arr[i];
-
-            if (max_corr_value < corr_value) {
-                max_corr_value = corr_value;
+    case Impl::min_sum_of_corr_mean_deviat: {
+        if (!corr_min_mean_deviat_sum_deq.empty()) {
+            for (const auto & corr_min_mean_deviat_sum_ref : corr_min_mean_deviat_sum_deq) {
+                // use only first periodic value
+                if (corr_min_mean_deviat_sum_ref.period) {
+                    data.syncseq_bit_offset = corr_min_mean_deviat_sum_ref.offset;
+                    data.stream_params.stream_width = corr_min_mean_deviat_sum_ref.period;
+                    data.corr_io_params.used_corr_mean = corr_min_mean_deviat_sum_ref.corr_mean;
+                    data.corr_io_params.period_used_repeat = corr_min_mean_deviat_sum_ref.num_corr - 1;
+                    break;
+                }
             }
         }
+    } break;
 
-        data.autocorr_io_params.max_corr_value = max_corr_value;
-    }
-    else if (autocorr_values_arr.size()) {
-        data.stream_params.stream_width = math::uint32_max; // print other calculated values
+    case Impl::autocorr_of_corr_values:
+    {
+        if (!corr_autocorr_arr.empty()) {
+            for (const auto & corr_autocorr_ref : corr_autocorr_arr) {
+                // use only first periodic value
+                if (corr_autocorr_ref.period) {
+                    data.syncseq_bit_offset = corr_autocorr_ref.offset;
+                    data.stream_params.stream_width = corr_autocorr_ref.period;
 
-        // search first maximum correlation value
-        uint64_t syncseq_bit_offset = math::uint64_max;
+                    const auto num_corr = uint32_t((data.corr_in_params.stream_bit_size - corr_autocorr_ref.offset - 1) / corr_autocorr_ref.period);
 
-        float used_corr_value = 0;
-        float max_corr_value = 0;
-
-        for (size_t i = 0; i < autocorr_values_arr.size(); i++) {
-            const float corr_value = autocorr_values_arr[i];
-
-            if (max_corr_value < corr_value) {
-                max_corr_value = corr_value;
-                syncseq_bit_offset = i;
-                used_corr_value = corr_value;
+                    data.corr_io_params.period_used_repeat =
+                        (std::min)(num_corr ? num_corr - 1 : 0, data.corr_io_params.max_period);
+                    break;
+                }
             }
         }
+    } break;
 
-        if (syncseq_bit_offset != math::uint64_max) {
-            if (max_corr_value >= g_options.autocorr_min) {
-                data.syncseq_bit_offset = syncseq_bit_offset;
-                data.autocorr_io_params.used_corr_value = used_corr_value;
-            }
-        }
+    default:
+    {
+        assert(0); // not implemented
+    } break;
     }
 
 #ifdef _DEBUG // DO NOT REMOVE: search algorithm false positive calculation code to test algorithm stability within input noise
 
     // Example of a command line to run a test:
     //
-    //  `bitsync.exe /autocorr-min 0.81 /inn <bit-block-size> <probability-per-block> /tee-input test_input_w_noise.bin /spmin <stream-min-period> /spmax <stream-max-period> /s <stream-byte-size> /q <syncseq-bit-size> /r <syncseq-repeat-value> /k <syncseq-hex-value> sync <bits-per-baud> test_input.bin .`
+    //  `bitsync.exe /corr-mean-min 0.81 /inn <bit-block-size> <probability-per-block> /tee-input test_input_w_noise.bin /spmin <stream-min-period> /spmax <stream-max-period> /s <stream-byte-size> /q <syncseq-bit-size> /r <syncseq-repeat-value> /k <syncseq-hex-value> sync <bits-per-baud> test_input.bin .`
     //
     //  For example, if syncseq-bit-size=20, then `bit-block-size` can be half of the synchro sequence - `10` with probability-per-block=100.
     //  That means the noise generator would generate from 1 to 3 of inversed bits per each synchro sequence in a bit stream.
     //
 
     // Example of expressions for the watch window in a debugger to represent statistical validity and certainty of the
-    // correlation values output without mean search (first phase of the algorithm before the `autocorr_max_mean_deq` calculation):
+    // correlation values output without next phases of an algorithm:
     //
     //  true_num                                    // quantity of found true positions, just for a self test
     //
@@ -704,12 +711,15 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
     //                                              //
 
     // Example of expressions for the watch window in a debugger to represent statistical validity and certainty of the
-    // correlation mean values output (second phase of the algorithm with the `autocorr_max_mean_deq` calculation):
+    // correlation mean values output without next phases of an algorithm:
     //
-    //  &autocorr_max_mean_deq[0],30                // Correlation mean values together with particular number of correlation values used to calculate a mean value and
-    //                                              // bit stream offset and period, sorted from correlation mean maximum value to minimum.
+    //  &corr_max_mean_sum_deq[0],30                // weighted sums of correlation mean values and bit stream offset and period, sorted from weighted sum of correlation mean maximum value to minimum.
     //
-    //  &false_in_true_max_corr_mean_arr[0],30      // false positive correlation values within true positions, sorted from correlation mean maximum value to minimum
+    //  &corr_min_mean_deviat_sum_deq[0],30         // sums of correlation mean deviation values and bit stream offset and period, sorted from sum of correlation mean deviation minimum value to maximum
+    //
+    //  &false_in_true_corr_max_weighted_mean_sum_arr[0],30     // false positive correlation values within true positions, sorted from weighted sum of correlation mean maximum value to minimum
+    //
+    //  &false_in_true_corr_min_mean_deviat_sum_arr[0],30       // false positive correlation values within true positions, sorted from sum of correlation mean deviation minimum value to maximum
     //
 
     size_t true_num;
@@ -738,16 +748,20 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
     std::vector<size_t> false_in_true_max_index_arr;
     std::vector<float> saved_true_in_false_max_corr_arr;
     std::vector<size_t> saved_true_in_false_max_index_arr;
-    std::vector<SyncseqAutocorrStats> false_in_true_max_corr_mean_arr;
+    std::vector<SyncseqCorrMeanStats> false_in_true_corr_max_weighted_mean_sum_arr;
+    std::vector<SyncseqCorrMeanDeviatStats> false_in_true_corr_min_mean_deviat_sum_arr;
 
-    calculate_syncseq_autocorrelation_false_positive_stats(
-        autocorr_values_arr, !g_flags.disable_calc_autocorr_mean ? &autocorr_max_mean_deq : nullptr,
+    calculate_syncseq_correlation_false_positive_stats(
+        corr_values_arr,
+        g_options.impl_token == Impl::max_weighted_sum_of_corr_mean ? &corr_max_mean_sum_deq : nullptr,
+        g_options.impl_token == Impl::min_sum_of_corr_mean_deviat ? &corr_min_mean_deviat_sum_deq : nullptr,
         true_positions_index_arr,
         true_num, 30,
         false_max_corr_arr, false_max_index_arr, true_max_corr_arr, true_max_index_arr,
         false_in_true_max_corr_arr, false_in_true_max_index_arr,
         saved_true_in_false_max_corr_arr, saved_true_in_false_max_index_arr,
-        !g_flags.disable_calc_autocorr_mean ? &false_in_true_max_corr_mean_arr : nullptr);
+        g_options.impl_token == Impl::max_weighted_sum_of_corr_mean ? &false_in_true_corr_max_weighted_mean_sum_arr : nullptr,
+        g_options.impl_token == Impl::min_sum_of_corr_mean_deviat ? &false_in_true_corr_min_mean_deviat_sum_arr : nullptr);
 
     Sleep(0); // DO NOT REMOVE: for a debugger break point
 #endif

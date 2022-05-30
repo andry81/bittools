@@ -2,7 +2,7 @@
 
 #include "common.hpp"
 
-#include "autocorrelation.hpp"
+#include "correlation.hpp"
 
 #include "tacklelib/utility/utility.hpp"
 #include "tacklelib/utility/assert.hpp"
@@ -22,6 +22,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
+#define DEFAULT_SYNCSEQ_MAXIMAL_REPEAT_PERIOD   16
+#define DEFAULT_MAX_PERIODS_IN_OFFSET           0
+#define DEFAULT_MAX_CORR_VALUES_PER_PERIOD      16
+
+#define DEFAULT_CORR_MIN                        0.65
+#define DEFAULT_CORR_MEAN_MIN                   0.81
+
+#define DEFAULT_CORR_MEAN_BUF_MAX_SIZE_MB       400 // 400 Mb is default
 
 namespace tackle {
 #ifdef _UNICODE
@@ -53,7 +62,10 @@ struct Flags
     //void merge(const Flags & flags);
     void clear();
 
-    bool disable_calc_autocorr_mean;
+    bool skip_calc_on_filtered_corr_value_use;
+    bool skip_max_weighted_sum_of_corr_mean_calc;
+    bool sort_at_first_by_max_corr_mean;
+    bool return_sorted_result;
     bool insert_output_syncseq_instead_fill;
 };
 
@@ -69,12 +81,15 @@ struct Options
     Options & operator =(const Options &) = default;
     //Options && operator =(Options &&) = default;
 
+    std::tstring            impl_token_str;
+    Impl::Token             impl_token;
     std::tstring            mode;
     uint32_t                stream_byte_size;
     uint64_t                stream_bit_size;
     uint32_t                stream_min_period;
     uint32_t                stream_max_period;
-    uint32_t                max_periods_in_offset;
+    uint32_t                max_periods_in_offset;              // -1 = no limit, 0 = 1 period excluding first bit of 2d period, 1 = 1 period including first bit of 2d period, >1 = N periods including first bit of N+1 period
+    uint32_t                max_corr_values_per_period;
     uint32_t                syncseq_bit_size;
     uint32_t                syncseq_int32;
     uint32_t                syncseq_min_repeat;
@@ -87,8 +102,9 @@ struct Options
     uint32_t                insert_output_syncseq_end_offset;   // excluding
     uint32_t                insert_output_syncseq_period;
     uint32_t                insert_output_syncseq_period_repeat;
-    float                   autocorr_min;
-    uint64_t                autocorr_mean_buf_max_size_mb;
+    float                   corr_min;
+    float                   corr_mean_min;
+    uint64_t                corr_mean_buf_max_size_mb;
     tackle::path_tstring    input_file;
     tackle::path_tstring    tee_input_file;
     tackle::path_tstring    output_file_dir;
@@ -145,8 +161,9 @@ struct SyncData
     uint64_t                        syncseq_bit_offset; // CAUTION: can be greater than stream width/period because of noise or synchronous sequence change in the input data!
     StreamParams                    stream_params;
     NoiseParams                     noise_params;
-    AutocorrInParams                autocorr_in_params;
-    AutocorrInOutParams             autocorr_io_params;
+    CorrInParams                    corr_in_params;
+    CorrInOutParams                 corr_io_params;
+    CorrOutParams                   corr_out_params;
 };
 
 struct PipeData
