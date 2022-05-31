@@ -92,11 +92,11 @@ struct CorrOutParams // output only parameters
     std::vector<CalcTimePhase>      calc_time_phases;
 
     size_t                          num_corr_values_calc;           // number of all correlation values calculated for a bit stream excluding filtered values by correlation minimum
+    size_t                          num_corr_values_iterated;       // number of iteration over all correlation values
     size_t                          num_corr_means_calc;            // number of all correlation mean values calculated (if enabled) for all offsets and all periods in each offset excluding filtered values by correlation mean minimum
-    size_t                          num_corr_values_iterated;       // number of iteration over all correlation values, represents resulted O(n) time complexity for input conditions
+    size_t                          num_corr_means_iterated;        // number of iteration over all correlation mean values
     size_t                          used_corr_mean_bytes;           // all containers bytes used to store all correlation mean values, represents overall memory usage
     size_t                          accum_corr_mean_bytes;          // Container bytes used to store accumulated correlation mean values.
-                                                                    // Represents resulted O(n) memory complexity for input conditions.
                                                                     // If this value hit the maximum, then correlation mean values calculation algorithm does a quit.
     bool                            accum_corr_mean_calc;           // Indicates correlation mean values calculation.
     bool                            accum_corr_mean_quit;           // Indicates correlation mean values calculation algorithm early quit.

@@ -1153,11 +1153,11 @@ int _tmain(int argc, const TCHAR * argv[])
                         sync_data.corr_out_params.accum_corr_mean_calc ?
                             fmt::format(
                                 _T(
-                                    "num corr means calculated:     {:d}\n"
+                                    "num corr means calc/iter:      {:d} / {:d}\n"
                                     "corr means mem accum/max:      {:d} / {:d} Kb\n"
                                     "corr means mem used:           {:d} Kb\n"
                                 ),
-                                sync_data.corr_out_params.num_corr_means_calc,
+                                sync_data.corr_out_params.num_corr_means_calc, sync_data.corr_out_params.num_corr_means_iterated,
                                 (sync_data.corr_out_params.accum_corr_mean_bytes + 1023) / 1024, sync_data.corr_in_params.max_corr_mean_bytes / 1024,
                                 (sync_data.corr_out_params.used_corr_mean_bytes + 1023) / 1024) :
                             _T("");
@@ -1183,7 +1183,7 @@ int _tmain(int argc, const TCHAR * argv[])
                     fmt::print(
                         _T(
                             "impl token:                    {:d} / {:s}\n"
-                            "synseq length/value:           {:d} / {:#010x}\n"
+                            "syncseq length/value:          {:d} / {:#010x}\n"
                             "offset:                    {:s}{:s}{:s}\n"                     // CAUTION: can be greater than stream width/period because of noise or synchronous sequence change in the input data!
                             "period (width):            {:s}{:s}{:s}\n"
                             "stream bit length:             {:d}\n"
@@ -1196,8 +1196,7 @@ int _tmain(int argc, const TCHAR * argv[])
                             "{:s}"                                                          // used when correlation mean values calculation algorithm is enabled
                             "{:s}"                                                          // used when correlation mean deviation values calculation algorithm is enabled
                             "max corr values per period:    {:d}\n"
-                            "num corr values calculated:    {:d}\n"
-                            "num corr values iterated:      {:d}\n"
+                            "num corr values calc/iter:     {:d} / {:d}\n"
                             "{:s}"                                                          // used when correlation mean values calculation algorithm is enabled
                             "input noise pttn bits/prob:    {:s}\n"
                             "{:s}{:s}"                                                      // used when algorithm modification flags is used

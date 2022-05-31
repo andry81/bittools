@@ -1,3 +1,7 @@
+2022.05.31:
+* new: src/bitsync: added print the number of iterated correlation mean values
+* changed: samples/bitstreams/README.md: readme update
+
 2022.05.30:
 * fixed: src/bitsync: `/max-periods-in-offset` incorrect skip
 * new: src/bitsync: added algorithm with mean deviation calculation

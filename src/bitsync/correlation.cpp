@@ -666,8 +666,10 @@ void calculate_syncseq_correlation(
                 uint64_t offset;
             };
 
+            uint32_t num_corr_values_iter = 0;
+
             uint32_t num_corr_means_calc = 0;
-            uint32_t num_corr_values_all_iterated = 0;
+            uint32_t num_corr_means_iter = 0;
 
             size_t used_corr_mean_bytes = 0;
             size_t accum_corr_mean_bytes = 0;
@@ -716,7 +718,7 @@ void calculate_syncseq_correlation(
 
                     corr_offset_mean = CorrOffsetMean{ first_corr_value, first_corr_value ? 1U : 0U, i };
 
-                    num_corr_values_all_iterated++;
+                    num_corr_values_iter++;
 
                     for (; j < stream_bit_size && repeat < syncseq_max_repeat; j += period, repeat++) {
                         const float next_corr_value = corr_values_arr[size_t(j)];
@@ -730,7 +732,7 @@ void calculate_syncseq_correlation(
                             corr_offset_mean.num_corr++;
                         }
 
-                        num_corr_values_all_iterated++;
+                        num_corr_values_iter++;
                     }
 
                     assert(repeat + 1 >= corr_offset_mean.num_corr);
@@ -751,6 +753,8 @@ void calculate_syncseq_correlation(
                             num_corr_means_calc++;
                         }
                     }
+
+                    num_corr_means_iter++;
 
                     if (corr_offset_mean.corr_mean && corr_offset_mean.num_corr) {
                         min_corr_mean_value = (std::min)(min_corr_mean_value, corr_offset_mean.corr_mean);
@@ -781,8 +785,10 @@ void calculate_syncseq_correlation(
             corr_io_params.min_corr_mean = min_corr_mean_value;
             corr_io_params.max_corr_mean = max_corr_mean_value;
 
-            corr_out_params.num_corr_values_iterated = num_corr_values_all_iterated;
+            corr_out_params.num_corr_values_iterated = num_corr_values_iter;
+
             corr_out_params.num_corr_means_calc = num_corr_means_calc;
+            corr_out_params.num_corr_means_iterated = num_corr_means_iter;
 
             corr_out_params.used_corr_mean_bytes = used_corr_mean_bytes;
             corr_out_params.accum_corr_mean_bytes = accum_corr_mean_bytes;
@@ -1169,8 +1175,10 @@ void calculate_syncseq_correlation(
                 uint64_t offset;
             };
 
+            uint32_t num_corr_values_iter = 0;
+
             uint32_t num_corr_means_calc = 0;
-            uint32_t num_corr_values_all_iterated = 0;
+            uint32_t num_corr_means_iter = 0;
 
             size_t used_corr_mean_bytes = 0;
             size_t accum_corr_mean_bytes = 0;
@@ -1222,7 +1230,7 @@ void calculate_syncseq_correlation(
 
                     corr_offset_mean_deviat = CorrOffsetMeanDeviat{ first_corr_value, 0, first_corr_value ? 1U : 0U, i };
 
-                    num_corr_values_all_iterated++;
+                    num_corr_values_iter++;
 
                     for ( ; j < stream_bit_size && repeat < syncseq_max_repeat; j += period, repeat++) {
                         const float next_corr_value = corr_values_arr[size_t(j)];
@@ -1236,7 +1244,7 @@ void calculate_syncseq_correlation(
                             corr_offset_mean_deviat.num_corr++;
                         }
 
-                        num_corr_values_all_iterated++;
+                        num_corr_values_iter++;
                     }
 
                     assert(repeat + 1 >= corr_offset_mean_deviat.num_corr);
@@ -1295,6 +1303,8 @@ void calculate_syncseq_correlation(
                         }
                     }
 
+                    num_corr_means_iter++;
+
                     if (corr_offset_mean_deviat.corr_mean && corr_offset_mean_deviat.num_corr) {
                         min_corr_mean_value = (std::min)(min_corr_mean_value, corr_offset_mean_deviat.corr_mean);
                         max_corr_mean_value = (std::max)(max_corr_mean_value, corr_offset_mean_deviat.corr_mean);
@@ -1327,8 +1337,10 @@ void calculate_syncseq_correlation(
             corr_io_params.min_corr_mean_deviat = min_corr_mean_deviat_value;
             corr_io_params.max_corr_mean_deviat = max_corr_mean_deviat_value;
 
-            corr_out_params.num_corr_values_iterated = num_corr_values_all_iterated;
+            corr_out_params.num_corr_values_iterated = num_corr_values_iter;
+
             corr_out_params.num_corr_means_calc = num_corr_means_calc;
+            corr_out_params.num_corr_means_iterated = num_corr_means_iter;
 
             corr_out_params.used_corr_mean_bytes = used_corr_mean_bytes;
             corr_out_params.accum_corr_mean_bytes = accum_corr_mean_bytes;
@@ -1486,7 +1498,7 @@ void calculate_syncseq_correlation(
             corr_autocorr_arr.push_back(SyncseqCorr{ 0, uint32_t(stream_min_period + i), 0, 0 });
         }
 
-        uint32_t num_corr_values_all_iterated = 0;
+        uint32_t num_corr_values_iter = 0;
 
         for (size_t i = 0, offset_shift = size_t(stream_min_period); max_offset_shifts; i++, offset_shift++, max_offset_shifts--) {
             auto & autocorr = corr_autocorr_arr[i];
@@ -1502,14 +1514,14 @@ void calculate_syncseq_correlation(
                     num_corr++;
                 }
 
-                num_corr_values_all_iterated++;
+                num_corr_values_iter++;
             }
 
             autocorr.corr_value = corr_value / num_corr;
             autocorr.num_corr = num_corr;
         }
 
-        corr_out_params.num_corr_values_iterated = num_corr_values_all_iterated;
+        corr_out_params.num_corr_values_iterated = num_corr_values_iter;
 
         auto begin_it = corr_autocorr_arr.begin();
         auto end_it = corr_autocorr_arr.end();
