@@ -27,8 +27,11 @@
 #define DEFAULT_MAX_PERIODS_IN_OFFSET           0
 #define DEFAULT_MAX_CORR_VALUES_PER_PERIOD      16
 
-#define DEFAULT_CORR_MIN                        0.65
-#define DEFAULT_CORR_MEAN_MIN                   0.81
+#define DEFAULT_LINEAR_CORR_MIN                 0.71f
+#define DEFAULT_LINEAR_CORR_MEAN_MIN            0.81f
+
+#define DEFAULT_QUADRATIC_CORR_MIN              0.51f
+#define DEFAULT_QUADRATIC_CORR_MEAN_MIN         0.65f
 
 #define DEFAULT_CORR_MEAN_BUF_MAX_SIZE_MB       400 // 400 Mb is default
 
@@ -62,6 +65,7 @@ struct Flags
     //void merge(const Flags & flags);
     void clear();
 
+    bool use_linear_corr;
     bool skip_calc_on_filtered_corr_value_use;
     bool skip_max_weighted_sum_of_corr_mean_calc;
     bool sort_at_first_by_max_corr_mean;
@@ -82,7 +86,9 @@ struct Options
     //Options && operator =(Options &&) = default;
 
     std::tstring            impl_token_str;
-    Impl::Token             impl_token;
+    Impl::impl_token        impl_token;
+    std::tstring            corr_mm_token_str;
+    Impl::corr_multiply_method  corr_mm;
     std::tstring            mode;
     uint32_t                stream_byte_size;
     uint64_t                stream_bit_size;
@@ -109,6 +115,12 @@ struct Options
     tackle::path_tstring    tee_input_file;
     tackle::path_tstring    output_file_dir;
     tackle::path_tstring    output_file;
+
+    bool is_corr_mm_default() const;
+
+    void update_impl_token_defaults();
+    void update_corr_mm_defaults();
+    void update_corr_min_defaults(const Flags & flags);
 };
 
 enum Mode

@@ -77,7 +77,7 @@
 //  5. Because we don't need an inversed or maximal negative correlation range - `[-1; 0)` (an inversed synchro sequence does not need to be
 //     found), then we search solutions only in the positive numbers quantity - `[1; +inf]`.
 //
-//  6. Because multiplication of functions does gain a square factor value, then we may take the square root to return back to linear value.
+//  6. Because multiplication of functions does gain a square factor or quadratic value, then we may take the square root to return back to linear value.
 //
 
 //  The general formula of 2 functions multiplication:
@@ -276,31 +276,31 @@
 //
 //  2. Multiply functions and divide the result by the maximum of absolute maximums of 2 functions.
 //
-//  3. Take the square root to convert value back to linear correlation value.
+//  3. Left as is or take the square root to convert value back to linear correlation value.
 //
 //     Examples:
 //
 //       Equality(f1, f1) = sqrt( 21 / 21 ) = 1 (maximum positive correlation value)
 //       Equality(fa, fa) = Equality(fb, fb) = 1
 //
-//       Equality(f1, f2) = sqrt( 12 / max(21, 21) ) = ~0.76
-//       Equality(f1, f3) = sqrt( 24 / max(21, 36) ) = ~0.82
-//       Equality(f1, f4) = sqrt( 39 / max(21, 129) ) = ~0.55
-//       Equality(f1, f5) = sqrt( 14 / max(21, 41) ) = ~0.58
+//       Equality(f1, f2) = sqrt( 12 / max(21, 21) ) = sqrt(~0.57) = ~0.76
+//       Equality(f1, f3) = sqrt( 24 / max(21, 36) ) = sqrt(~0.66) = ~0.82
+//       Equality(f1, f4) = sqrt( 39 / max(21, 129) ) = sqrt(~0.30) = ~0.55
+//       Equality(f1, f5) = sqrt( 14 / max(21, 41) ) = sqrt(~0.34) = ~0.58
 //
-//       Equality(f2, f3) = sqrt( 24 / max(21, 36) ) = ~0.82
-//       Equality(f2, f4) = sqrt( 48 / max(21, 129) ) = ~0.61
-//       Equality(f2, f5) = sqrt( 29 / max(21, 41) ) = ~0.84
-//       Equality(f2, f6) = sqrt( 42 / max(21, 84) ) = ~0.71
+//       Equality(f2, f3) = sqrt( 24 / max(21, 36) ) = sqrt(~0.66) = ~0.82
+//       Equality(f2, f4) = sqrt( 48 / max(21, 129) ) = sqrt(~0.37) = ~0.61
+//       Equality(f2, f5) = sqrt( 29 / max(21, 41) ) = sqrt(~0.71) = ~0.84
+//       Equality(f2, f6) = sqrt( 42 / max(21, 84) ) = sqrt(0.5) = ~0.71
 //
-//       Equality(f3, f4) = sqrt( 60 / max(36, 129) ) = ~0.68
-//       Equality(f3, f5) = sqrt( 32 / max(36, 41) ) = ~0.88
-//       Equality(f3, f6) = sqrt( 48 / max(36, 84) ) = ~0.76
+//       Equality(f3, f4) = sqrt( 60 / max(36, 129) ) = sqrt(~0.47) = ~0.68
+//       Equality(f3, f5) = sqrt( 32 / max(36, 41) ) = sqrt(~0.78) = ~0.88
+//       Equality(f3, f6) = sqrt( 48 / max(36, 84) ) = sqrt(~0.57) = ~0.76
 //
-//       Equality(f4, f5) = sqrt(62 / max(129, 41)) = ~0.69
-//       Equality(f4, f6) = sqrt(96 / max(129, 84)) = ~0.86
+//       Equality(f4, f5) = sqrt(62 / max(129, 41)) = sqrt(~0.48) = ~0.69
+//       Equality(f4, f6) = sqrt(96 / max(129, 84)) = sqrt(~0.74) = ~0.86
 //
-//       Equality(f5, f6) = sqrt( 58 / max(41, 84) ) = ~0.83
+//       Equality(f5, f6) = sqrt( 58 / max(41, 84) ) = sqrt(~0.69) = ~0.83
 //
 //  4. Use one of the implementation algorithms described for `/impl-token` option in the help file.
 //     May needs too much memory or can be too slow, so do use the optimization command line parameters to reduce memory consumption and speedup the calculation
@@ -329,81 +329,66 @@ inline void calc_phase_time_fractions(double calc_all_time_sec, std::vector<Calc
     }
 }
 
-// Correlation complement function generator to make a function to multiply with most correlation equality within the noise when 2 functions are equal without the noise.
-//
-// Has a set of properties:
-//
-//  1. Generate a set of values in range of [1; 2^16-1] from arbitrary bit set.
-//  2. To make a stable multiplication with minimal affect from input noise, where the true (not false positive) positions in a bit stream with equal or
-//     most equal comparison would have higher correlation values and all others would have lower correlation values.
-//
-extern inline void generate_corr_complement_func_from_bitset(uint32_t value, uint32_t value_bit_size, uint32_t * out_ptr, size_t offset)
+extern inline float multiply_bits(Impl::corr_multiply_method mm, uint32_t in0_value, uint32_t in1_value, size_t size)
 {
-    static const uint32_t s_default_prime_numbers_arr[] = { // CAUTION: for 32-bit blocks
-        1249,
-        1237,
-        1231,
-        1229,
-        1223,
-        1217,
-        1213,
-        1201,
-        1193,
-        1187,
-        1181,
-        1171,
-        1163,
-        1153,
-        1151,
-        1129,
-        1123,
-        1117,
-        1109,
-        1103,
-        1097,
-        1093,
-        1091,
-        1087,
-        1069,
-        1063,
-        1061,
-        1051,
-        1049,
-        1039,
-        1033,
-        1031
+    static const uint32_t s_prime1033_numbers_arr[] = { // CAUTION: for 32-bit blocks
+        1033, 1039, 1049, 1051, 1061, 1063, 1069, 1087, 1091, 1093, 1097, 1103, 1109, 1117, 1123, 1129,
+        1151, 1153, 1163, 1171, 1181, 1187, 1193, 1201, 1213, 1217, 1223, 1229, 1231, 1237, 1249, 1259,
     };
 
-    const size_t function_len = value_bit_size;
+    assert(size > 0 && 32 >= size);
 
-    for (size_t i = 0, j = function_len - 1; i < function_len; i++, j--) {
-        out_ptr[offset] = (value & (uint32_t(0x01) << i)) ? s_default_prime_numbers_arr[i] : (i + 1) * 2;
-        //out_ptr[offset] = (value & (uint32_t(0x01) << i)) ? 1000 + i : (i + 1) * 2;
-        offset++;
+    uint32_t multiplied_value = 0;
+
+    switch (mm) {
+    case Impl::corr_muliply_inverted_xor_prime1033:
+    {
+        // NOTE:
+        //  The xor is treated as inverted (count zeros instead ones), because zero difference must gain a highest positive value.
+        //  The maximum difference must gain a lowest positive value, but not a zero.
+        //  As a result, is less the difference, then is higher the resulted value, so the multiplication of equal bit sequences will gain the highest value.
+        //  Only after that we can convert the integer to the floating point number range (0; 1.0].
+        //
+        const uint32_t xor_value = (in0_value ^ in1_value);
+
+        for (size_t i = 0; i < size; i++) {
+            multiplied_value += (xor_value & (uint32_t(0x01) << i)) ? 0 : s_prime1033_numbers_arr[i];
+        }
+    } break;
+
+    case Impl::corr_muliply_dispersed_value_prime1033:
+    {
+        // NOTE:
+        //  The xor might be not enough because it gains not enough unique or low dispersion result.
+        //  In that case we can increase multiplication dispersion to improve correlation certainty which
+        //  is relied on more arranged or wider spectrum of a correlation value.
+        //
+
+        for (size_t i = 0; i < size; i++) {
+            const uint32_t in0_dispersed_value = (in0_value & (uint32_t(0x01) << i)) ? s_prime1033_numbers_arr[i] : (i + 1) * 2;
+            const uint32_t in1_dispersed_value = (in1_value & (uint32_t(0x01) << i)) ? s_prime1033_numbers_arr[i] : (i + 1) * 2;
+
+            multiplied_value += in0_dispersed_value * in1_dispersed_value;
+        }
+    } break;
+
+    default:
+        assert(0);
     }
+
+    return float(multiplied_value ? multiplied_value : 1); // return only minimal positive value
 }
 
-extern inline uint64_t multiply_corr_funcs(const uint32_t * in0_ptr, const uint32_t * in1_ptr, size_t size)
-{
-    uint64_t sum = 0;
-
-    for (size_t i = 0; i < size; i++) {
-        sum += uint64_t(in0_ptr[i]) * in1_ptr[i];
-    }
-
-    return sum;
-}
-
-// returns float instead of double because in0/in1/max_in0/max_in1 contains values in range [1; 2^16-1]
+// returns float instead of double because 32-bit integer contains a value in range [1; 2^16-1]
 //
-extern inline float calculate_corr_value(const uint32_t * in0_ptr, const uint32_t * in1_ptr, size_t size, uint64_t max_in0, uint64_t max_in1)
+extern inline float calculate_corr_value(Impl::corr_multiply_method mm, uint32_t in0_value, uint32_t in1_value, size_t size, float max_in0, float max_in1, bool make_linear_corr)
 {
-    const float corr = sqrtf(float(multiply_corr_funcs(in0_ptr, in1_ptr, size)) / (std::max)(max_in0, max_in1));
+    const float corr = multiply_bits(mm, in0_value, in1_value, size) / (std::max)(max_in0, max_in1);
 
     // zero padded values from padded arrays must not be passed here
     assert(0 < corr && 1.0f >= corr); // must be always in range (0; 1]
 
-    return corr;
+    return make_linear_corr ? std::sqrt(corr) : corr;
 }
 
 void calculate_syncseq_correlation(
@@ -431,11 +416,11 @@ void calculate_syncseq_correlation(
 
     corr_out_params.calc_time_phases.reserve(4);
 
-    BOOST_SCOPE_EXIT(begin_calc_time, &corr_out_params) {
+    BOOST_SCOPE_EXIT(&corr_out_params, begin_calc_time) {
         const auto calc_all_time_sec = end_calc_phase_time(_T("all"), begin_calc_time, corr_out_params.calc_time_phases);
 
         calc_phase_time_fractions(calc_all_time_sec, corr_out_params.calc_time_phases);
-    } BOOST_SCOPE_EXIT_END
+    } BOOST_SCOPE_EXIT_END;
 
     const auto stream_bit_size = corr_in_params.stream_bit_size;
     const auto syncseq_bit_size = corr_in_params.syncseq_bit_size;
@@ -451,25 +436,29 @@ void calculate_syncseq_correlation(
     assert(syncseq_bit_size);
     assert(syncseq_bit_size < stream_bit_size); // must be greater
 
-    const auto syncseq_min_repeat = corr_in_params.period_min_repeat ? corr_in_params.period_min_repeat : 1; // just in case
+    // Recalculate the maximum repeats from the minimum repeats, because number of minimum repeats has a priority.
+    //
+    const auto syncseq_min_repeat = corr_in_params.period_min_repeat ? corr_in_params.period_min_repeat : 1;
     const auto syncseq_max_repeat = (std::max)(corr_in_params.period_max_repeat, syncseq_min_repeat);
 
     uint64_t stream_min_period =
         (std::min)(
             // If not defined, then minimal "from" period is at least 2 synchro sequence bit length, otherwise - not less than synchro sequence bit length + 1.
             // But always not greater than a bit stream length - 1.
-            uint64_t(corr_io_params.min_period ? (std::max)(syncseq_bit_size + 1, corr_io_params.min_period) : syncseq_bit_size * 2),
+            uint64_t(corr_in_params.min_period ? (std::max)(syncseq_bit_size + 1, corr_in_params.min_period) : syncseq_bit_size * 2),
             stream_bit_size - 1);
     uint64_t stream_max_period =
         (std::min)(
             // If not defined, then minimal "to" period is at least 2 synchro sequence bit length, otherwise - not less than synchro sequence bit length + 1.
             // But always not greater than a bit stream length - 1.
-            uint64_t(corr_io_params.max_period != math::uint32_max ? (std::max)(syncseq_bit_size + 1, corr_io_params.max_period) : stream_bit_size * 2),
+            uint64_t(corr_in_params.max_period != math::uint32_max ? (std::max)(syncseq_bit_size + 1, corr_in_params.max_period) : stream_bit_size * 2),
             stream_bit_size - 1);
 
+    // align maximum period by minimum period
     stream_max_period = (std::max)(stream_max_period, stream_min_period);
 
-    // recalculated for min/max periods for a synchro sequence min repeat
+    // Recalculate min/max periods from the minimum repeat, because number of minimum repeats has priority over a period.
+    //
     const uint64_t stream_max_period_for_min_repeat = (stream_bit_size - 1) / (syncseq_min_repeat ? syncseq_min_repeat : 1);
 
     stream_min_period = (std::min)(stream_min_period, stream_max_period_for_min_repeat);
@@ -481,12 +470,37 @@ void calculate_syncseq_correlation(
 
     assert(stream_min_period);
 
-    // write back
-    corr_io_params.min_period = uint32_t(stream_min_period);
-    corr_io_params.max_period = uint32_t(stream_max_period);
+    // CAUTION:
+    //  Input conditions must be initially in consistency between each other and must not decrease the field of search of the result because of mutual inconsistency.
+    //
 
-    if (syncseq_bit_size >= stream_min_period || syncseq_bit_size >= stream_max_period) {
-        // the input conditions are not met, no room for calculation
+    // write back for user notification
+    corr_out_params.min_period = uint32_t(stream_min_period);
+    corr_out_params.max_period = uint32_t(stream_max_period);
+
+    if (corr_in_params.min_period && corr_in_params.min_period != math::uint32_max && corr_in_params.min_period < stream_min_period) {
+        // recalculated minimum period is increased, important input condition is changed and reduced the field of search of the result, quit calculation
+        corr_out_params.input_inconsistency = true;
+        return;
+    }
+
+    if (corr_in_params.max_period != math::uint32_max && stream_max_period < corr_in_params.max_period) {
+        // recalculated maximum period is decreased, important input condition is changed and reduced the field of search of the result, quit calculation
+        corr_out_params.input_inconsistency = true;
+        return;
+    }
+
+    if (corr_in_params.period_min_repeat && stream_max_period * corr_in_params.period_min_repeat >= stream_bit_size) {
+        // recalculated stream bit size is increased, important input condition is changed and reduced the field of search of the result, quit calculation
+        corr_out_params.input_inconsistency = true;
+        return;
+    }
+
+    assert(stream_max_period * syncseq_min_repeat < stream_bit_size);
+
+    if (syncseq_bit_size >= stream_min_period) {
+        // the input conditions are not met, not enough room for calculation
+        corr_out_params.input_inconsistency = true;
         return;
     }
 
@@ -496,11 +510,8 @@ void calculate_syncseq_correlation(
     const uint64_t num_stream_32bit_blocks = padded_stream_bit_size / 32;
     uint32_t * stream_buf32 = (uint32_t *)stream_buf;
 
-    std::vector<uint32_t> syncseq_bits_block_corr_weight_arr((size_t(stream_bit_size)));
-    std::vector<uint32_t> stream_bits_block_corr_weight_arr((size_t(stream_bit_size * syncseq_bit_size)));
-
-    std::vector<uint64_t> stream_corr_absmax_arr((size_t(stream_bit_size)));
-    uint64_t syncseq_corr_absmax_arr = 1; // minimum
+    float syncseq_corr_absmax;
+    std::vector<float> stream_corr_absmax_arr(size_t(stream_bit_size), 1);
 
     // Phase 1:
     //
@@ -523,53 +534,37 @@ void calculate_syncseq_correlation(
     {
         const auto begin_calc_phase_time = std::chrono::high_resolution_clock::now();
 
-        // generate correlation complement function from the bit stream
-
-        // Calculate correlation complement functions.
-        //
-        // Major time complexity: O(N * M), where N - stream bit length, M - synchro sequence bit length
-        //
-
-        uint64_t stream_bit_offset = 0;
-
-        // generate correlation complement function from the synchro sequence
-        generate_corr_complement_func_from_bitset(syncseq_bytes, syncseq_bit_size, &syncseq_bits_block_corr_weight_arr[0], 0);
-
-        if_goto_b(phase11_break, true)
-            for (uint32_t from = 0; from < num_stream_32bit_blocks; from++) {
-                const uint64_t from64 = *(uint64_t *)(stream_buf32 + from);
-
-                for (uint32_t i = 0; i < 32; i++) {
-                    const uint32_t from_shifted = uint32_t(from64 >> i) & syncseq_mask;
-
-                    generate_corr_complement_func_from_bitset(from_shifted, syncseq_bit_size, &stream_bits_block_corr_weight_arr[size_t(stream_bit_offset * syncseq_bit_size)], 0);
-
-                    stream_bit_offset++;
-
-                    // avoid calculation from zero padded array values to avoid shift from range (0; 1] to range [0; 1]
-                    if (stream_bit_offset >= stream_bit_size) {
-                        goto phase11_break;
-                    }
-                }
-            }
-
         // Calculate correlation complement functions absolute maximums (by multiply to itself).
         //
         // Major time complexity: O(N * M), where N - stream bit length, M - synchro sequence bit length
         //
 
-        // calculate absolute maximums for the synchro sequence correlation function
-        syncseq_corr_absmax_arr = multiply_corr_funcs(
-            syncseq_bits_block_corr_weight_arr.data(),
-            syncseq_bits_block_corr_weight_arr.data(),
-            syncseq_bit_size);
+        // calculate absolute maximums for the synchro sequence bits
+        syncseq_corr_absmax = multiply_bits(corr_in_params.corr_mm, syncseq_bytes, syncseq_bytes, syncseq_bit_size);
 
-        // calculate absolute maximums for the bit stream correlation function
-        for (size_t i = 0; i < stream_bit_size; i++) {
-            stream_corr_absmax_arr[i] = multiply_corr_funcs(
-                &stream_bits_block_corr_weight_arr[i * syncseq_bit_size],
-                &stream_bits_block_corr_weight_arr[i * syncseq_bit_size],
-                syncseq_bit_size);
+        // Calculate absolute maximums for the bit stream.
+        //
+        //
+        // Major time complexity: O(N * M), where N - stream bit length, M - synchro sequence bit length
+        //
+
+        if_goto_b(phase11_break, true) {
+            size_t stream_bit_offset = 0;
+
+            for (uint32_t from = 0; from < num_stream_32bit_blocks; from++) {
+                const uint64_t from64 = *(uint64_t *)(stream_buf32 + from);
+
+                for (uint32_t i = 0; i < 32; i++, stream_bit_offset++) {
+                    const uint32_t from_shifted = uint32_t(from64 >> i) & syncseq_mask;
+
+                    stream_corr_absmax_arr[stream_bit_offset] = multiply_bits(corr_in_params.corr_mm, from_shifted, from_shifted, syncseq_bit_size);
+
+                    // avoid calculation from zero padded array values
+                    if (stream_bit_offset >= stream_bit_size) {
+                        goto phase11_break;
+                    }
+                }
+            }
         }
 
         float min_corr_value = math::float_max;
@@ -584,25 +579,41 @@ void calculate_syncseq_correlation(
 
         corr_values_arr.reserve((size_t(stream_bit_size)));
 
-        for (size_t i = 0; i < stream_bit_size; i++) {
-            const auto corr_value =
-                calculate_corr_value(
-                    syncseq_bits_block_corr_weight_arr.data(),
-                    &stream_bits_block_corr_weight_arr[i * syncseq_bit_size],
-                    syncseq_bit_size,
-                    syncseq_corr_absmax_arr,
-                    stream_corr_absmax_arr[i]);
+        // CAUTION:
+        //  We must avoid drop to zero before an autocorrelation calculation, because it will randomly distort the being multiplied functions length.
+        //
 
-            min_corr_value = (std::min)(min_corr_value, corr_value);
-            max_corr_value = (std::max)(max_corr_value, corr_value);
+        if_goto_b(phase12_break, true) {
+            size_t stream_bit_offset = 0;
 
-            if (corr_value >= corr_in_params.corr_min) {
-                corr_values_arr.push_back(corr_value);
+            for (uint32_t from = 0; from < num_stream_32bit_blocks; from++) {
+                const uint64_t from64 = *(uint64_t *)(stream_buf32 + from);
 
-                num_corr_values_calc++;
-            }
-            else {
-                corr_values_arr.push_back(0); // dropped correlation value
+                for (uint32_t i = 0; i < 32; i++, stream_bit_offset++) {
+                    const uint32_t from_shifted = uint32_t(from64 >> i) & syncseq_mask;
+
+                    const auto corr_value = calculate_corr_value(
+                        corr_in_params.corr_mm,
+                        syncseq_bytes, from_shifted, syncseq_bit_size, syncseq_corr_absmax, stream_corr_absmax_arr[stream_bit_offset],
+                        corr_in_params.use_linear_corr);
+
+                    min_corr_value = (std::min)(min_corr_value, corr_value);
+                    max_corr_value = (std::max)(max_corr_value, corr_value);
+
+                    if (corr_value >= corr_in_params.corr_min) {
+                        corr_values_arr.push_back(corr_value);
+
+                        num_corr_values_calc++;
+                    }
+                    else {
+                        corr_values_arr.push_back(0);
+                    }
+
+                    // avoid calculation from zero padded array values
+                    if (stream_bit_offset >= stream_bit_size) {
+                        goto phase12_break;
+                    }
+                }
             }
         }
 
@@ -610,13 +621,13 @@ void calculate_syncseq_correlation(
 
         corr_out_params.num_corr_values_calc = num_corr_values_calc;
 
-        corr_io_params.min_corr_value = min_corr_value;
-        corr_io_params.max_corr_value = max_corr_value;
+        corr_out_params.min_corr_value = min_corr_value;
+        corr_out_params.max_corr_value = max_corr_value;
     }
 
     switch (corr_in_params.impl_token) {
-    case Impl::max_weighted_sum_of_corr_mean:
-    case Impl::min_sum_of_corr_mean_deviat:
+    case Impl::impl_max_weighted_sum_of_corr_mean:
+    case Impl::impl_min_sum_of_corr_mean_deviat:
     {
         // Phase 2:
         //
@@ -646,7 +657,7 @@ void calculate_syncseq_correlation(
         //  What means we must skip usage of these values.
         //
 
-        if (corr_in_params.impl_token == Impl::max_weighted_sum_of_corr_mean) {
+        if (corr_in_params.impl_token == Impl::impl_max_weighted_sum_of_corr_mean) {
             const auto begin_calc_phase_means_time = std::chrono::high_resolution_clock::now();
 
             //// calculate maximum storage size for correlation mean values to cancel calculations, rounding to greater
@@ -782,8 +793,8 @@ void calculate_syncseq_correlation(
 
             end_calc_phase_time(_T("corr mean values"), begin_calc_phase_means_time, corr_out_params.calc_time_phases);
 
-            corr_io_params.min_corr_mean = min_corr_mean_value;
-            corr_io_params.max_corr_mean = max_corr_mean_value;
+            corr_out_params.min_corr_mean = min_corr_mean_value;
+            corr_out_params.max_corr_mean = max_corr_mean_value;
 
             corr_out_params.num_corr_values_iterated = num_corr_values_iter;
 
@@ -860,10 +871,6 @@ void calculate_syncseq_correlation(
                 //
                 //     1.1174 = 0.836 + 0.845 * (5 - 1) / (11 - 1)
                 //     1.0082 = 0.823 + 0.831 * (6 - 1) / (17 - 1)
-                //
-                //  NOTE:
-                //    Mean values are linear values (square root is taken), when the multiplication of 2 functions is a square value.
-                //    So the weighted mean sum is a sum of linear values.
                 //
 
                 const auto begin_calc_weighted_means_sum_time = std::chrono::high_resolution_clock::now();
@@ -1164,7 +1171,7 @@ void calculate_syncseq_correlation(
                 end_calc_phase_time(_T("corr max mean"), begin_calc_max_mean_time, corr_out_params.calc_time_phases);
             }
         }
-        else if (corr_in_params.impl_token == Impl::min_sum_of_corr_mean_deviat) {
+        else if (corr_in_params.impl_token == Impl::impl_min_sum_of_corr_mean_deviat) {
             const auto begin_calc_phase_mean_deviats_time = std::chrono::high_resolution_clock::now();
 
             struct CorrOffsetMeanDeviat
@@ -1331,11 +1338,11 @@ void calculate_syncseq_correlation(
 
             end_calc_phase_time(_T("corr mean deviat values"), begin_calc_phase_mean_deviats_time, corr_out_params.calc_time_phases);
 
-            corr_io_params.min_corr_mean = min_corr_mean_value;
-            corr_io_params.max_corr_mean = max_corr_mean_value;
+            corr_out_params.min_corr_mean = min_corr_mean_value;
+            corr_out_params.max_corr_mean = max_corr_mean_value;
 
-            corr_io_params.min_corr_mean_deviat = min_corr_mean_deviat_value;
-            corr_io_params.max_corr_mean_deviat = max_corr_mean_deviat_value;
+            corr_out_params.min_corr_mean_deviat = min_corr_mean_deviat_value;
+            corr_out_params.max_corr_mean_deviat = max_corr_mean_deviat_value;
 
             corr_out_params.num_corr_values_iterated = num_corr_values_iter;
 
@@ -1451,11 +1458,11 @@ void calculate_syncseq_correlation(
         }
     } break;
 
-    case Impl::autocorr_of_corr_values:
+    case Impl::impl_max_weighted_autocorr_of_corr_values:
     {
         // Phase 2:
         //
-        //  Correlation values autocorrelation calculation, significantly increases algorithm certainty or false positive stability within input noise.
+        //  Correlation values weighted autocorrelation calculation, significantly increases algorithm certainty or false positive stability within input noise.
         //
         // Produces correlation values with noticeable certainty tolerance around 33% from the math expected value of number `one` bits per synchro sequence length,
         // where math expected value is equal to the half of synchro sequence length.
@@ -1473,8 +1480,8 @@ void calculate_syncseq_correlation(
         //                                , where N - stream bit length
         //
         //  NOTE:
-        //    Correlation values are linear values (square root is taken), when the multiplication of 2 functions is a square value.
-        //    The accumulated correlation values here is a sum of linear values.
+        //    1. Autocorrelation is sensitive to input noise and makes uncertain result because of it.
+        //       You have to cut off that noise by using `/min-corr` option.
         //
 
         const auto begin_calc_phase_time = std::chrono::high_resolution_clock::now();
@@ -1484,40 +1491,115 @@ void calculate_syncseq_correlation(
         // Major time complexity: O(N * N), where N - stream bit length
         //
 
-        auto max_offset_shifts = uint32_t(stream_bit_size - stream_min_period);
-
+        uint64_t min_offset_shift = (std::min)(stream_min_period, stream_bit_size - 1);
+        uint64_t max_offset_shift = stream_bit_size - 1;
+        
         if (syncseq_max_repeat != math::uint32_max) {
-            max_offset_shifts = (std::min)(max_offset_shifts, uint32_t((std::min)(stream_max_period * syncseq_max_repeat, uint64_t(math::uint32_max))));
+            max_offset_shift = (std::min)(max_offset_shift, stream_max_period * syncseq_max_repeat);
         }
 
-        assert(stream_bit_size >= stream_min_period + max_offset_shifts);
+        // NOTE:
+        //  The minimum offset is much important than the maximum offset, because a minimal offset contains minimal number of repeats which
+        //  cuts off not enough certain or noisy values (than greater the repeat, then more certain the mean value calculated from a period with N repeats).
+        //  So the number of an offset shifts (positions) does reduce by the maximum offset at first, but does increase by the minimum offset at second.
+        //
+        auto num_offset_shifts = max_offset_shift + 1;
 
-        corr_autocorr_arr.reserve(size_t(max_offset_shifts));
+        num_offset_shifts = (std::max)(num_offset_shifts, min_offset_shift + 1);
 
-        for (size_t i = 0; i < size_t(max_offset_shifts); i++) {
+        // CAUTION:
+        //  Autocorrelation does decrease the effective length of input buffer bit stream and may violate consistency of input conditions has checked on consistency before.
+        //  We must check on input conditions consistency again after recalculation.
+        //
+
+        if (stream_bit_size < stream_min_period + num_offset_shifts) {
+            // recalculate
+            num_offset_shifts = stream_bit_size - stream_min_period;
+
+            // recheck the input conditions consistency
+
+            if (corr_in_params.period_min_repeat) {
+                if (corr_in_params.max_period != math::uint32_max && corr_in_params.max_period * corr_in_params.period_min_repeat >= num_offset_shifts ||
+                    corr_in_params.min_period && corr_in_params.min_period != math::uint32_max && corr_in_params.min_period * corr_in_params.period_min_repeat >= num_offset_shifts) {
+                    // recalculated stream bit size is increased, important input condition is changed and reduced the field of search of the result, quit calculation
+                    corr_out_params.input_inconsistency = true;
+                }
+            }
+            else {
+                if (corr_in_params.max_period != math::uint32_max && corr_in_params.max_period >= num_offset_shifts ||
+                    corr_in_params.min_period && corr_in_params.min_period != math::uint32_max && corr_in_params.min_period >= num_offset_shifts) {
+                    // recalculated stream bit size is increased, important input condition is changed and reduced the field of search of the result, quit calculation
+                    corr_out_params.input_inconsistency = true;
+                }
+            }
+        }
+
+        const auto num_autocorr_values = size_t(min_offset_shift + num_offset_shifts);
+        //const auto num_syncseq_autocorr_values = size_t((min_offset_shift + num_offset_shifts) * syncseq_bit_size);
+        //const auto num_syncseq_offset_shifts = size_t(num_offset_shifts * syncseq_bit_size);
+
+        corr_autocorr_arr.reserve(size_t(num_offset_shifts));
+
+        for (size_t i = 0; i < size_t(num_offset_shifts); i++) {
             corr_autocorr_arr.push_back(SyncseqCorr{ 0, uint32_t(stream_min_period + i), 0, 0 });
+        }
+
+        // calculate correlation square values
+        std::vector<float> corr_square_values_arr(num_autocorr_values);
+
+        // calculate correlation denominator accumulated values
+        std::vector<float> corr_denominator_first_accum_value_arr(size_t(num_offset_shifts), 0);
+        std::vector<float> corr_denominator_second_accum_value_arr(size_t(num_offset_shifts), 0);
+
+        for (size_t i = 0; i < num_offset_shifts; i++) {
+            const auto & corr_value = corr_values_arr[i];
+
+            corr_square_values_arr[i] = corr_value * corr_value;
+        }
+
+        float corr_denominator_first_accum_value = 0;
+        float corr_denominator_second_accum_value = 0;
+
+        for (size_t i = 0; i < num_offset_shifts; i++) {
+            corr_denominator_first_accum_value += corr_square_values_arr[i];
+            corr_denominator_second_accum_value += corr_square_values_arr[size_t(stream_min_period + num_offset_shifts - i - 1)];
+
+            corr_denominator_first_accum_value_arr[size_t(num_offset_shifts - i - 1)] = corr_denominator_first_accum_value;
+            corr_denominator_second_accum_value_arr[size_t(num_offset_shifts - i - 1)] = corr_denominator_second_accum_value;
         }
 
         uint32_t num_corr_values_iter = 0;
 
-        for (size_t i = 0, offset_shift = size_t(stream_min_period); max_offset_shifts; i++, offset_shift++, max_offset_shifts--) {
+        // result of 2 functions multiplication
+        float corr_numerator_value;
+
+        uint32_t num_corr;
+
+        for (size_t i = 0, offset_shift = size_t(stream_min_period); max_offset_shift >= offset_shift && num_offset_shifts >= min_offset_shift; i++, offset_shift++, num_offset_shifts--) {
             auto & autocorr = corr_autocorr_arr[i];
 
-            size_t num_corr = 0;
-            float corr_value = 0;
+            // result of 2 functions multiplication
+            corr_numerator_value = 0;
 
-            for (size_t j = 0; j < max_offset_shifts; j++) {
-                const float corr_square_value = corr_values_arr[j] * corr_values_arr[j + offset_shift];
+            num_corr = 0;
 
-                if (corr_square_value) {
-                    corr_value += std::sqrt(corr_square_value); // linear
+            for (size_t j = 0; j < num_offset_shifts; j++) {
+                const float corr_value =  corr_values_arr[j] * corr_values_arr[j + offset_shift];
+
+                // count not zero
+                if (corr_value) {
+                    corr_numerator_value += corr_value;
                     num_corr++;
                 }
 
                 num_corr_values_iter++;
             }
 
-            autocorr.corr_value = corr_value / num_corr;
+            // NOTE:
+            //  1. The `num_autocorr_values` here is the entire correlation set normalization factor, because the rest of formula has already normalized to [0; 0.1].
+            //  2. No need to return correlation values back to linear, because they only used for a sort.
+            //
+            autocorr.corr_value = corr_numerator_value * num_autocorr_values / (std::max)(corr_denominator_first_accum_value_arr[i], corr_denominator_second_accum_value_arr[i]);
             autocorr.num_corr = num_corr;
         }
 

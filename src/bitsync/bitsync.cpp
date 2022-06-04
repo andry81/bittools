@@ -47,7 +47,8 @@ Options::Options()
     //  * all max values based on a stream bit length
     //
 
-    impl_token                          = Impl::unknown;
+    impl_token                          = Impl::impl_unknown;
+    corr_mm                             = Impl::corr_muliply_unknown;
     stream_byte_size                    = 0;
     stream_bit_size                     = 0;
     stream_min_period                   = math::uint32_max;
@@ -65,11 +66,77 @@ Options::Options()
     insert_output_syncseq_end_offset    = math::uint32_max;
     insert_output_syncseq_period        = 0;
     insert_output_syncseq_period_repeat = math::uint32_max;
-    corr_min                            = DEFAULT_CORR_MIN;
-    corr_mean_min                       = DEFAULT_CORR_MEAN_MIN;
+    corr_min                            = math::float_max;
+    corr_mean_min                       = math::float_max;
     corr_mean_buf_max_size_mb           = DEFAULT_CORR_MEAN_BUF_MAX_SIZE_MB;
 }
 
+bool Options::is_corr_mm_default() const
+{
+    return corr_mm == Impl::corr_muliply_inverted_xor_prime1033;
+}
+
+void Options::update_impl_token_defaults()
+{
+    if (impl_token == Impl::impl_unknown) {
+        impl_token = Impl::impl_max_weighted_sum_of_corr_mean;
+    }
+
+    switch (impl_token) {
+    case Impl::impl_max_weighted_sum_of_corr_mean:
+        impl_token_str = _T("max-weighted-sum-of-corr-mean");
+        break;
+    case Impl::impl_min_sum_of_corr_mean_deviat:
+        impl_token_str = _T("min-sum-of-corr-mean-deviat");
+        break;
+    case Impl::impl_max_weighted_autocorr_of_corr_values:
+        impl_token_str = _T("weighted-autocorr-of-corr-values");
+        break;
+    default:
+        assert(0);
+    }
+}
+
+void Options::update_corr_mm_defaults()
+{
+    if (corr_mm == Impl::corr_muliply_unknown) {
+        corr_mm = Impl::corr_muliply_inverted_xor_prime1033;
+    }
+
+    switch (corr_mm) {
+    case Impl::corr_muliply_inverted_xor_prime1033:
+        corr_mm_token_str = _T("inverted-xor-prime1033");
+        break;
+    case Impl::corr_muliply_dispersed_value_prime1033:
+        corr_mm_token_str = _T("dispersed-value-prime1033");
+        break;
+    default:
+        assert(0);
+    }
+}
+
+void Options::update_corr_min_defaults(const Flags & flags)
+{
+    if (corr_min == math::float_max)
+    {
+        if (flags.use_linear_corr) {
+            corr_min = DEFAULT_LINEAR_CORR_MIN;
+        }
+        else {
+            corr_min = DEFAULT_QUADRATIC_CORR_MIN;
+        }
+    }
+
+    if (corr_mean_min == math::float_max)
+    {
+        if (flags.use_linear_corr) {
+            corr_mean_min = DEFAULT_LINEAR_CORR_MEAN_MIN;
+        }
+        else {
+            corr_mean_min = DEFAULT_QUADRATIC_CORR_MEAN_MIN;
+        }
+    }
+}
 
 void Options::clear()
 {
@@ -629,37 +696,37 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
         corr_min_mean_deviat_sum_deq);
 
     switch (g_options.impl_token) {
-    case Impl::max_weighted_sum_of_corr_mean: {
+    case Impl::impl_max_weighted_sum_of_corr_mean: {
         if (!corr_max_mean_sum_deq.empty()) {
             for (const auto & corr_max_mean_sum_ref : corr_max_mean_sum_deq) {
                 // use only first periodic value
                 if (corr_max_mean_sum_ref.period) {
                     data.syncseq_bit_offset = corr_max_mean_sum_ref.offset;
                     data.stream_params.stream_width = corr_max_mean_sum_ref.period;
-                    data.corr_io_params.used_corr_mean = corr_max_mean_sum_ref.corr_mean;
-                    data.corr_io_params.period_used_repeat = corr_max_mean_sum_ref.num_corr - 1;
+                    data.corr_out_params.used_corr_mean = corr_max_mean_sum_ref.corr_mean;
+                    data.corr_out_params.period_used_repeat = corr_max_mean_sum_ref.num_corr - 1;
                     break;
                 }
             }
         }
     } break;
 
-    case Impl::min_sum_of_corr_mean_deviat: {
+    case Impl::impl_min_sum_of_corr_mean_deviat: {
         if (!corr_min_mean_deviat_sum_deq.empty()) {
             for (const auto & corr_min_mean_deviat_sum_ref : corr_min_mean_deviat_sum_deq) {
                 // use only first periodic value
                 if (corr_min_mean_deviat_sum_ref.period) {
                     data.syncseq_bit_offset = corr_min_mean_deviat_sum_ref.offset;
                     data.stream_params.stream_width = corr_min_mean_deviat_sum_ref.period;
-                    data.corr_io_params.used_corr_mean = corr_min_mean_deviat_sum_ref.corr_mean;
-                    data.corr_io_params.period_used_repeat = corr_min_mean_deviat_sum_ref.num_corr - 1;
+                    data.corr_out_params.used_corr_mean = corr_min_mean_deviat_sum_ref.corr_mean;
+                    data.corr_out_params.period_used_repeat = corr_min_mean_deviat_sum_ref.num_corr - 1;
                     break;
                 }
             }
         }
     } break;
 
-    case Impl::autocorr_of_corr_values:
+    case Impl::impl_max_weighted_autocorr_of_corr_values:
     {
         if (!corr_autocorr_arr.empty()) {
             for (const auto & corr_autocorr_ref : corr_autocorr_arr) {
@@ -670,8 +737,8 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
 
                     const auto num_corr = uint32_t((data.corr_in_params.stream_bit_size - corr_autocorr_ref.offset - 1) / corr_autocorr_ref.period);
 
-                    data.corr_io_params.period_used_repeat =
-                        (std::min)(num_corr ? num_corr - 1 : 0, data.corr_io_params.max_period);
+                    data.corr_out_params.period_used_repeat =
+                        (std::min)(num_corr ? num_corr - 1 : 0, data.corr_out_params.max_period);
                     break;
                 }
             }
@@ -685,6 +752,9 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
     }
 
 #ifdef _DEBUG // DO NOT REMOVE: search algorithm false positive calculation code to test algorithm stability within input noise
+    if (data.corr_out_params.input_inconsistency) {
+        return;
+    }
 
     // Example of a command line to run a test:
     //
@@ -753,15 +823,15 @@ void search_synchro_sequence(SyncData & data, tackle::file_reader_state & state,
 
     calculate_syncseq_correlation_false_positive_stats(
         corr_values_arr,
-        g_options.impl_token == Impl::max_weighted_sum_of_corr_mean ? &corr_max_mean_sum_deq : nullptr,
-        g_options.impl_token == Impl::min_sum_of_corr_mean_deviat ? &corr_min_mean_deviat_sum_deq : nullptr,
+        g_options.impl_token == Impl::impl_max_weighted_sum_of_corr_mean ? &corr_max_mean_sum_deq : nullptr,
+        g_options.impl_token == Impl::impl_min_sum_of_corr_mean_deviat ? &corr_min_mean_deviat_sum_deq : nullptr,
         true_positions_index_arr,
         true_num, 30,
         false_max_corr_arr, false_max_index_arr, true_max_corr_arr, true_max_index_arr,
         false_in_true_max_corr_arr, false_in_true_max_index_arr,
         saved_true_in_false_max_corr_arr, saved_true_in_false_max_index_arr,
-        g_options.impl_token == Impl::max_weighted_sum_of_corr_mean ? &false_in_true_corr_max_weighted_mean_sum_arr : nullptr,
-        g_options.impl_token == Impl::min_sum_of_corr_mean_deviat ? &false_in_true_corr_min_mean_deviat_sum_arr : nullptr);
+        g_options.impl_token == Impl::impl_max_weighted_sum_of_corr_mean ? &false_in_true_corr_max_weighted_mean_sum_arr : nullptr,
+        g_options.impl_token == Impl::impl_min_sum_of_corr_mean_deviat ? &false_in_true_corr_min_mean_deviat_sum_arr : nullptr);
 
     Sleep(0); // DO NOT REMOVE: for a debugger break point
 #endif

@@ -5,6 +5,6 @@ AppName = "bitsync";
 AppModuleName = "bitsync";
 
 AppMajorVer = 1;
-AppMinorVer = 8;
+AppMinorVer = 9;
 AppRevision = 0;
-AppBuildNum = 13;
+AppBuildNum = 14;

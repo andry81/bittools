@@ -86,6 +86,45 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [/impl-token <token>] [//] <Mode> 
 
         Has meaning only for these modes: sync | gen-sync.
 
+      /corr-multiply-method <token>
+      /corr-mm <token>
+        Correlation multiplication method to use.
+
+        /corr-multiply-method inverted-xor-prime1033
+        /corr-mm-inverted-xor-prime1033
+
+          The xor is treated as inverted (count zeros instead ones), because
+          zero difference must gain a highest positive value. The maximum
+          difference must gain a lowest positive value, but not a zero.
+          As a result, is less the difference, then is higher the resulted
+          value, so the multiplication of equal bit sequences will gain the
+          highest value. Only after that we can convert the integer to the
+          floating point number range (0; 1.0].
+
+          This is default implementation.
+
+          Can not be used together with another `/corr-multiply-method`
+          option.
+
+        /corr-multiply-method dispersed-value-prime1033
+        /corr-mm-dispersed-value-prime1033
+
+          The xor might be not enough because it gains not enough unique or
+          low dispersion result. In that case we can increase multiplication
+          dispersion to improve correlation certainty which is relied on more
+          arranged or wider spectrum of a correlation value.
+
+          Can not be used together with another `/corr-multiply-method`
+          option.
+
+        Has meaning only for these modes: sync | gen-sync.
+
+      /use-linear-corr
+
+        Take a square root from each correlation value to convert it back to
+        linear distribution. If not defined, then use quadratic correlation
+        values as is.
+
       /use-max-corr-mean
       /skip-max-weighted-sum-of-corr-mean-calc
       /skip-mwsocm-calc
@@ -337,9 +376,14 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [/impl-token <token>] [//] <Mode> 
         Does filter out uncertain offset and period result if a found
         correlation value is less.
 
+        Has relation with `/use-linear-corr` flag.
+
         Must be in range [0.0; 1.0].
 
-        Default value is `0.65`.
+        Default value is:
+
+            `0.65` - if correlation is linear.
+            `0.42` - if correlation is quadratic.
 
       /corr-mean-min <value>
         Correlation mean minimum floating point value to treat it as certain.

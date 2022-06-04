@@ -8,32 +8,46 @@
 
 struct Impl
 {
-    enum Token {
-        unknown                         = -1,
+    enum impl_token
+    {
+        impl_unknown                                = -1,
 
         // major time complexity: N * N * ln(N)
-        max_weighted_sum_of_corr_mean   = 1,
+        impl_max_weighted_sum_of_corr_mean          = 1,
 
         // major time complexity: N * N * ln(N)
-        min_sum_of_corr_mean_deviat     = 2,
+        impl_min_sum_of_corr_mean_deviat            = 2,
 
         // major time complexity: N * N
-        autocorr_of_corr_values         = 3
+        impl_max_weighted_autocorr_of_corr_values   = 3
+    };
+
+    enum corr_multiply_method
+    {
+        corr_muliply_unknown                        = -1,
+
+        corr_muliply_inverted_xor_prime1033         = 1,
+
+        corr_muliply_dispersed_value_prime1033      = 2
     };
 };
 
 struct CorrInParams
 {
-    Impl::Token                     impl_token;
+    Impl::impl_token                impl_token;
+    Impl::corr_multiply_method      corr_mm;
     uint64_t                        stream_bit_size;
     uint32_t                        syncseq_bit_size;
     float                           corr_min;
     float                           corr_mean_min;
+    uint32_t                        min_period;
+    uint32_t                        max_period;
     uint32_t                        period_min_repeat;              // period min/max repeat quantity to calculate correlation mean values
     uint32_t                        period_max_repeat;
     uint32_t                        max_periods_in_offset;          // -1 = no limit, 0 = 1 period excluding first bit of 2d period, 1 = 1 period including first bit of 2d period, >1 = N periods including first bit of N+1 period
     uint32_t                        max_corr_values_per_period;
     size_t                          max_corr_mean_bytes;
+    bool                            use_linear_corr;
     bool                            skip_calc_on_filtered_corr_value_use;
     bool                            skip_max_weighted_sum_of_corr_mean_calc;
     bool                            sort_at_first_by_max_corr_mean;
@@ -44,13 +58,11 @@ struct CorrInParams
 struct CorrInOutParams // input/output parameters
 {
     CorrInOutParams() = default;
-    CorrInOutParams(uint32_t syncseq_int32_, uint32_t min_period_, uint32_t max_period_)
+    CorrInOutParams(uint32_t syncseq_int32_)
     {
         *this = CorrInOutParams{}; // reuse initialization by value
 
         syncseq_int32 = syncseq_int32_;
-        min_period = min_period_;
-        max_period = max_period_;
     }
     CorrInOutParams(const CorrInOutParams &) = default;
     CorrInOutParams(CorrInOutParams &&) = default;
@@ -59,17 +71,6 @@ struct CorrInOutParams // input/output parameters
     CorrInOutParams & operator =(CorrInOutParams &&) = default;
 
     uint32_t                        syncseq_int32;
-    float                           used_corr_value;
-    float                           min_corr_value;
-    float                           max_corr_value;
-    float                           used_corr_mean;
-    float                           min_corr_mean;
-    float                           max_corr_mean;
-    float                           min_corr_mean_deviat;
-    float                           max_corr_mean_deviat;
-    uint32_t                        min_period;
-    uint32_t                        max_period;
-    uint32_t                        period_used_repeat;
 };
 
 struct CalcTimePhase
@@ -91,6 +92,18 @@ struct CorrOutParams // output only parameters
 
     std::vector<CalcTimePhase>      calc_time_phases;
 
+    float                           used_corr_value;
+    float                           min_corr_value;
+    float                           max_corr_value;
+    float                           used_corr_mean;
+    float                           min_corr_mean;
+    float                           max_corr_mean;
+    float                           min_corr_mean_deviat;
+    float                           max_corr_mean_deviat;
+    uint32_t                        min_period;
+    uint32_t                        max_period;
+    uint32_t                        period_used_repeat;
+
     size_t                          num_corr_values_calc;           // number of all correlation values calculated for a bit stream excluding filtered values by correlation minimum
     size_t                          num_corr_values_iterated;       // number of iteration over all correlation values
     size_t                          num_corr_means_calc;            // number of all correlation mean values calculated (if enabled) for all offsets and all periods in each offset excluding filtered values by correlation mean minimum
@@ -98,6 +111,7 @@ struct CorrOutParams // output only parameters
     size_t                          used_corr_mean_bytes;           // all containers bytes used to store all correlation mean values, represents overall memory usage
     size_t                          accum_corr_mean_bytes;          // Container bytes used to store accumulated correlation mean values.
                                                                     // If this value hit the maximum, then correlation mean values calculation algorithm does a quit.
+    bool                            input_inconsistency;            // indicates input inconsistency
     bool                            accum_corr_mean_calc;           // Indicates correlation mean values calculation.
     bool                            accum_corr_mean_quit;           // Indicates correlation mean values calculation algorithm early quit.
 };
@@ -140,14 +154,9 @@ struct SyncseqCorrMeanDeviatStats
     bool                            is_true;    // true position flag
 };
 
-void generate_corr_complement_func_from_bitset(
-    uint32_t value, uint32_t value_bit_size, std::vector<uint32_t> & out_ref, size_t offset);
+float multiply_bits(Impl::corr_multiply_method mm, uint32_t in0_value, uint32_t in1_value, size_t size);
 
-uint64_t multiply_corr_funcs(
-    const uint32_t * in0_ptr, const uint32_t * in1_ptr, size_t size);
-
-float calculate_corr_value(
-    const uint32_t * in0_ptr, const uint32_t * in1_ptr, size_t size, uint64_t max_in0, uint64_t max_in1);
+float calculate_corr_value(Impl::corr_multiply_method mm, uint32_t in0_value, uint32_t in1_value, size_t size, float max_in0, float max_in1, bool make_linear_corr);
 
 void calculate_syncseq_correlation(
     const CorrInParams &                    corr_in_params,

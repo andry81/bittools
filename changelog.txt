@@ -1,3 +1,12 @@
+2022.06.04:
+* new: src/bitsync: implemented 2 versions of correlation multiplication functions - `corr_muliply_inverted_xor_prime1033` and `corr_muliply_dispersed_value_prime1033`
+* new: src/bitsync: added `/use-linear-corr` to convert each correlation value back to linear, by default use quadratic values as is
+* changed: src/bitsync: rewrited a simplified version of correlation multiplication, removed correlation generator function as a bit redundant, replaced by direct bits multiplication function, use `corr_muliply_inverted_xor_prime1033` as a default correlation multiplication method
+* changed: samples/bitstreams/README.md: readme update
+
+2022.06.01:
+* fixed: src/bitsync: quit calculation on implicit input conditions change (like min/max period) which involves reduction of the field of search (like period change by number of minimum repeats)
+
 2022.05.31:
 * new: src/bitsync: added print the number of iterated correlation mean values
 * changed: samples/bitstreams/README.md: readme update
