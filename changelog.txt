@@ -1,3 +1,6 @@
+2022.06.05:
+* new: src/bitsync: added `/no-zero-corr` to replace all zero correlation values by the minimum
+
 2022.06.04:
 * new: src/bitsync: implemented 2 versions of correlation multiplication functions - `corr_muliply_inverted_xor_prime1033` and `corr_muliply_dispersed_value_prime1033`
 * new: src/bitsync: added `/use-linear-corr` to convert each correlation value back to linear, by default use quadratic values as is

@@ -119,6 +119,16 @@ Usage: [+ AppModuleName +].exe [/?] [<Flags>] [/impl-token <token>] [//] <Mode> 
 
         Has meaning only for these modes: sync | gen-sync.
 
+      /no-zero-corr
+        Avoid zero correlation values replacing them by `/corr-min` or by a
+        minimal positive value.
+
+        If `/corr-min` is defined to `0` or not defined, then a default
+        builtin value is used instead:
+
+          `0.51` - if `/use-linear-corr` is not defined.
+          `0.71` - if `/use-linear-corr` is defined.
+
       /use-linear-corr
 
         Take a square root from each correlation value to convert it back to

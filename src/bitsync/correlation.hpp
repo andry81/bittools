@@ -6,6 +6,20 @@
 #include <deque>
 #include <cstdlib>
 
+
+#define DEFAULT_SYNCSEQ_MAXIMAL_REPEAT_PERIOD   16
+#define DEFAULT_MAX_PERIODS_IN_OFFSET           0
+#define DEFAULT_MAX_CORR_VALUES_PER_PERIOD      16
+
+#define DEFAULT_LINEAR_CORR_MIN                 0.71f
+#define DEFAULT_LINEAR_CORR_MEAN_MIN            0.81f
+
+#define DEFAULT_QUADRATIC_CORR_MIN              0.51f
+#define DEFAULT_QUADRATIC_CORR_MEAN_MIN         0.65f
+
+#define DEFAULT_CORR_MEAN_BUF_MAX_SIZE_MB       400 // 400 Mb is default
+
+
 struct Impl
 {
     enum impl_token
@@ -47,6 +61,7 @@ struct CorrInParams
     uint32_t                        max_periods_in_offset;          // -1 = no limit, 0 = 1 period excluding first bit of 2d period, 1 = 1 period including first bit of 2d period, >1 = N periods including first bit of N+1 period
     uint32_t                        max_corr_values_per_period;
     size_t                          max_corr_mean_bytes;
+    bool                            no_zero_corr;
     bool                            use_linear_corr;
     bool                            skip_calc_on_filtered_corr_value_use;
     bool                            skip_max_weighted_sum_of_corr_mean_calc;

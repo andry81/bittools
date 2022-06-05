@@ -605,8 +605,14 @@ void calculate_syncseq_correlation(
 
                         num_corr_values_calc++;
                     }
-                    else {
+                    else if (!corr_in_params.no_zero_corr) {
                         corr_values_arr.push_back(0);
+                    }
+                    else if (corr_in_params.corr_min) {
+                        corr_values_arr.push_back(corr_in_params.corr_min);
+                    }
+                    else {
+                        corr_values_arr.push_back(corr_in_params.use_linear_corr ? DEFAULT_LINEAR_CORR_MIN : DEFAULT_QUADRATIC_CORR_MIN);
                     }
 
                     // avoid calculation from zero padded array values
@@ -1588,7 +1594,7 @@ void calculate_syncseq_correlation(
 
                 // count not zero
                 if (corr_value) {
-                    corr_numerator_value += corr_value;
+                    corr_numerator_value += corr_value * corr_value;
                     num_corr++;
                 }
 
@@ -1599,7 +1605,7 @@ void calculate_syncseq_correlation(
             //  1. The `num_autocorr_values` here is the entire correlation set normalization factor, because the rest of formula has already normalized to [0; 0.1].
             //  2. No need to return correlation values back to linear, because they only used for a sort.
             //
-            autocorr.corr_value = corr_numerator_value * num_autocorr_values / (std::max)(corr_denominator_first_accum_value_arr[i], corr_denominator_second_accum_value_arr[i]);
+            autocorr.corr_value = std::sqrt(corr_numerator_value * num_autocorr_values * num_autocorr_values / (std::max)(corr_denominator_first_accum_value_arr[i], corr_denominator_second_accum_value_arr[i]));
             autocorr.num_corr = num_corr;
         }
 

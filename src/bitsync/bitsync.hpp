@@ -23,18 +23,6 @@
 #include <stdlib.h>
 
 
-#define DEFAULT_SYNCSEQ_MAXIMAL_REPEAT_PERIOD   16
-#define DEFAULT_MAX_PERIODS_IN_OFFSET           0
-#define DEFAULT_MAX_CORR_VALUES_PER_PERIOD      16
-
-#define DEFAULT_LINEAR_CORR_MIN                 0.71f
-#define DEFAULT_LINEAR_CORR_MEAN_MIN            0.81f
-
-#define DEFAULT_QUADRATIC_CORR_MIN              0.51f
-#define DEFAULT_QUADRATIC_CORR_MEAN_MIN         0.65f
-
-#define DEFAULT_CORR_MEAN_BUF_MAX_SIZE_MB       400 // 400 Mb is default
-
 namespace tackle {
 #ifdef _UNICODE
     using path_tstring              = path_wstring;
@@ -65,6 +53,7 @@ struct Flags
     //void merge(const Flags & flags);
     void clear();
 
+    bool no_zero_corr;
     bool use_linear_corr;
     bool skip_calc_on_filtered_corr_value_use;
     bool skip_max_weighted_sum_of_corr_mean_calc;

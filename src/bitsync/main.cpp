@@ -25,6 +25,7 @@ const TCHAR * g_flags_to_parse_arr[] = {
     _T("/tee-input"),
     _T("/corr-min"),
     _T("/corr-mean-min"),
+    _T("/no-zero-corr"),
     _T("/skip-calc-on-filtered-corr-value-use"), _T("/skip-calc-on-fcvu"),
     _T("/skip-max-weighted-sum-of-corr-mean-calc"), _T("/skip-mwsocm-calc"),
     _T("/use-linear-corr"),
@@ -441,6 +442,14 @@ int parse_arg_to_option(
         else error = invalid_format_flag(start_arg);
         return 2;
     }
+    if (is_arg_equal_to(arg, _T("/no-zero-corr"))) {
+        if (is_arg_in_filter(start_arg, include_filter_arr)) {
+            flags.no_zero_corr = true;
+            mod_flags.push_back(arg);
+            return 1;
+        }
+        return 0;
+    }
     if (is_arg_equal_to(arg, _T("/use-linear-corr"))) {
         if (is_arg_in_filter(start_arg, include_filter_arr)) {
             flags.use_linear_corr = true;
@@ -503,39 +512,44 @@ namespace boost {
 
 int _tmain(int argc, const TCHAR * argv[])
 {
+    //// user limits
+    //const constexpr size_t min_period = 2;
+    //const constexpr size_t max_period = 15;
+
+    //assert(max_period >= min_period);
+
     //struct Corr
     //{
     //    int period;
     //    float corr;
     //};
-    //float in_arr[] = {
-    //    0.3,
-    //    0.4,
-    //    0.89,
-    //    0.8,
-    //    0.3,
-    //    0.9,
-    //    0.7,
-    //    0.4,
-    //    0.93,
-    //    0.6,
-    //    0.8,
-    //    0.91,
-    //    0.2
-    //};
-    //Corr out_arr[sizeof(in_arr) / sizeof(in_arr[0]) - 1];
-    //float in_arr_square[sizeof(in_arr) / sizeof(in_arr[0])];
+    //float in_arr[] = { 3, 4, 1.1, 8, 3, 1.1, 7, 4, 1.1, 6, 8, 1.1, 2, 6, 1.1, 7 };
 
-    //uint32_t stream_min_period = 2;
-    //uint32_t max_offset_shifts = 10;
+    //const constexpr size_t in_arr_size = sizeof(in_arr) / sizeof(in_arr[0]);
 
-    //for (size_t i = 0; i < sizeof(in_arr) / sizeof(in_arr[0]); i++) {
+    //assert(min_period < in_arr_size);
+    //assert(max_period < in_arr_size);
+
+    //Corr out_arr[in_arr_size - 1];
+    //float in_arr_square[in_arr_size];
+
+    //// calibration
+    //auto num_offset_shifts = max_period + 1;
+
+    //num_offset_shifts = (std::max)(num_offset_shifts, min_period + 1);
+
+    //if (in_arr_size < min_period + num_offset_shifts) {
+    //    // recalculate
+    //    num_offset_shifts = in_arr_size - min_period;
+    //}
+
+    //const auto num_autocorr_values = min_period + num_offset_shifts;
+
+    //for (size_t i = 0; i < in_arr_size; i++) {
     //    in_arr_square[i] = in_arr[i] * in_arr[i];
     //}
 
-    //const auto num_corr_values = max_offset_shifts;
-
-    //for (size_t i = 0, offset_shift = size_t(stream_min_period); max_offset_shifts; i++, offset_shift++, max_offset_shifts--) {
+    //for (size_t i = 0, offset_shift = min_period; max_period >= offset_shift && num_offset_shifts >= min_period; i++, offset_shift++, num_offset_shifts--) {
     //    auto & autocorr = out_arr[i];
 
     //    autocorr.period = offset_shift;
@@ -545,24 +559,20 @@ int _tmain(int argc, const TCHAR * argv[])
     //    float corr_denominator_first_value = 0;
     //    float corr_denominator_second_value = 0;
 
-    //    for (size_t j = 0; j < max_offset_shifts; j++) {
-    //        const float corr_numerator_square_value = in_arr[j] * in_arr[j + offset_shift];
+    //    for (size_t j = 0; j < num_offset_shifts; j++) {
+    //        const float corr_value = in_arr[j] * in_arr[j + offset_shift];
 
     //        corr_denominator_first_value += in_arr_square[j];
     //        corr_denominator_second_value += in_arr_square[j + offset_shift];
 
-    //        if (corr_numerator_square_value) {
-    //            corr_numerator_value += corr_numerator_square_value;
-    //        }
+    //        corr_numerator_value += corr_value * corr_value;
     //    }
 
-    //    autocorr.corr = corr_numerator_value * num_corr_values / (std::max)(corr_denominator_first_value, corr_denominator_second_value);
+    //    autocorr.corr = std::sqrt(corr_numerator_value * num_autocorr_values * num_autocorr_values / (std::max)(corr_denominator_first_value, corr_denominator_second_value));
     //}
 
-    //const float eps = FLT_EPSILON * num_corr_values;
-
     //auto begin_it = &out_arr[0];
-    //auto end_it = &out_arr[sizeof(in_arr) / sizeof(in_arr[0]) - 1];
+    //auto end_it = &out_arr[in_arr_size - 1];
 
     //std::sort(begin_it, end_it, [&](const Corr & l, const Corr & r) -> bool
     //{
@@ -1208,6 +1218,7 @@ int _tmain(int argc, const TCHAR * argv[])
                             g_options.max_periods_in_offset,
                             g_options.max_corr_values_per_period,
                             size_t(g_options.corr_mean_buf_max_size_mb * 1024 * 1024), // 4GB max
+                            g_flags.no_zero_corr,
                             g_flags.use_linear_corr,
                             g_flags.skip_calc_on_filtered_corr_value_use,
                             g_flags.skip_max_weighted_sum_of_corr_mean_calc,
