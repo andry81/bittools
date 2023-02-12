@@ -1,3 +1,8 @@
+2023.02.11:
+* changed: .externals: added usage of `vcstool` fork (https://github.com/plusone-robotics/vcstool) project to port `svn:externals` dependencies from svn into git
+* changed: subgit import from svn, branches rework, cleanup of svn related files
+* changed: README.md: readme update
+
 2022.06.05:
 * new: src/bitsync: added `/no-zero-corr` to replace all zero correlation values by the minimum
 
