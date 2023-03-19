@@ -3,8 +3,6 @@
 <h4 align="center">
 Utilities for operations over bit stream files.<br/><br/>
 
-The latest version is here: https://sf.net/p/bittools</h4>
-
 ##
 
 <p align="center">
@@ -59,8 +57,8 @@ The latest version is here: https://sf.net/p/bittools</h4>
 </p>
 
 <p align="center">
-  <a href="https://github.com/andry81/bittools/blob/trunk/changelog.txt">Changelog</a>
-• <a href="https://github.com/andry81/bittools/blob/trunk/README_EN.txt">Readme</a>
+  <a href="https://github.com/andry81/bittools/blob/master/changelog.txt">Changelog</a>
+• <a href="https://github.com/andry81/bittools/blob/master/README_EN.txt">Readme</a>
 • <a href="#dependecies">Dependencies</a>
 • <a href="#copyright-and-license"><img src="https://raw.githubusercontent.com/andry81-cache/andry81--gh-content-cache/master/common/badges/license/mit-license.svg" valign="middle" alt="copyright and license" />&nbsp;Copyright and License</a>
 </p>
@@ -81,4 +79,4 @@ The latest version is here: https://sf.net/p/bittools</h4>
 
 ## <a name="copyright-and-license">Copyright and License</a>
 
-Code and documentation copyright 2021 Andrey Dibrov. Code released under [MIT License](https://github.com/andry81/bittools/blob/trunk/license.txt)
+Code and documentation copyright 2021 Andrey Dibrov. Code released under [MIT License](https://github.com/andry81/bittools/blob/master/license.txt)

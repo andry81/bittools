@@ -1,5 +1,5 @@
 * README_EN.txt
-* 2021.11.11
+* 2023.03.19
 * bittools
 
 1. DESCRIPTION
@@ -12,29 +12,20 @@
 -------------------------------------------------------------------------------
 Utilities for operations over bit stream files.
 
-The latest version is here: https://sf.net/p/bittools
-
-WARNING:
-  Use the SVN access to find out new functionality and bug fixes.
-  See the REPOSITORIES section.
-
 -------------------------------------------------------------------------------
 2. DEPENDENCIES
 -------------------------------------------------------------------------------
-
-* Tacklelib     (https://github.com/andry81/tacklelib)
-* Boost library (https://github.com/andry81/tacklelib--3dparty--boost)
-* Fmt library   (https://github.com/andry81/tacklelib--3dparty--fmt)
+See in `README_EN.deps.txt` file of this project and all dependent.
 
 -------------------------------------------------------------------------------
 3. REPOSITORIES
 -------------------------------------------------------------------------------
 Primary:
-  * https://sf.net/p/bittools/bittools/HEAD/tree
-    https://svn.code.sf.net/p/bittools/bittools
-First mirror:
   * https://github.com/andry81/bittools/branches
     https://github.com/andry81/bittools.git
+First mirror:
+  * https://sf.net/p/bittools/bittools/ci/master/tree
+    https://git.code.sf.net/p/bittools/bittools
 Second mirror:
   * https://bitbucket.org/andry81/bittools/branches
     https://bitbucket.org/andry81/bittools.git
