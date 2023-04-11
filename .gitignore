@@ -1,4 +1,5 @@
 /.log
+/_externals
 /_out
 src/bitsync/help.txt
 src/bitsync/help_inl.hpp
