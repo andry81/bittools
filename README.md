@@ -60,20 +60,20 @@ Utilities for operations over bit stream files.<br/><br/>
   <a href="https://github.com/andry81/bittools/blob/master/changelog.txt">Changelog</a>
 • <a href="https://github.com/andry81/bittools/blob/master/README_EN.txt">Readme</a>
 • <a href="#dependecies">Dependencies</a>
-• <a href="#copyright-and-license"><img src="https://raw.githubusercontent.com/andry81-cache/andry81--gh-content-cache/master/common/badges/license/mit-license.svg" valign="middle" alt="copyright and license" />&nbsp;Copyright and License</a>
+• <a href="#copyright-and-license"><img src="https://github.com/andry81-cache/gh-content-static-cache/raw/master/common/badges/license/mit-license.svg" valign="middle" alt="copyright and license" />&nbsp;Copyright and License</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/andry81/donate"><img src="https://raw.githubusercontent.com/andry81-cache/andry81--gh-content-cache/master/common/badges/donate/donate.svg" valign="middle" alt="donate" /></a>
+  <a href="https://github.com/andry81/donate"><img src="https://github.com/andry81-cache/gh-content-static-cache/raw/master/common/badges/donate/donate.svg" valign="middle" alt="donate" /></a>
 </p>
 
 ---
 
 ## <a name="dependecies">Dependencies</a>
 
-* <a href="#"><img src="https://raw.githubusercontent.com/andry81-cache/andry81--gh-content-cache/master/common/badges/static/REQUIRED.svg" valign="middle" alt="REQUIRED" /></a> https://github.com/andry81/tacklelib
-* <a href="#"><img src="https://raw.githubusercontent.com/andry81-cache/andry81--gh-content-cache/master/common/badges/static/REQUIRED.svg" valign="middle" alt="REQUIRED" /></a> https://github.com/andry81/tacklelib--3dparty--boost
-* <a href="#"><img src="https://raw.githubusercontent.com/andry81-cache/andry81--gh-content-cache/master/common/badges/static/REQUIRED.svg" valign="middle" alt="REQUIRED" /></a> https://github.com/andry81/tacklelib--3dparty--fmt
+* <a href="#"><img src="https://github.com/andry81-cache/gh-content-static-cache/raw/master/common/badges/static/REQUIRED.svg" valign="middle" alt="REQUIRED" /></a> https://github.com/andry81/tacklelib
+* <a href="#"><img src="https://github.com/andry81-cache/gh-content-static-cache/raw/master/common/badges/static/REQUIRED.svg" valign="middle" alt="REQUIRED" /></a> https://github.com/andry81/tacklelib--3dparty--boost
+* <a href="#"><img src="https://github.com/andry81-cache/gh-content-static-cache/raw/master/common/badges/static/REQUIRED.svg" valign="middle" alt="REQUIRED" /></a> https://github.com/andry81/tacklelib--3dparty--fmt
 
 ---
 
