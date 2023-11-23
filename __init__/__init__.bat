@@ -9,6 +9,11 @@ if not defined NEST_LVL set NEST_LVL=0
 if not defined BITTOOLS_PROJECT_ROOT                        call "%%~dp0canonical_path.bat" BITTOOLS_PROJECT_ROOT                 "%%~dp0.."
 if not defined BITTOOLS_PROJECT_EXTERNALS_ROOT              call "%%~dp0canonical_path.bat" BITTOOLS_PROJECT_EXTERNALS_ROOT       "%%BITTOOLS_PROJECT_ROOT%%/_externals"
 
+if not exist "%BITTOOLS_PROJECT_EXTERNALS_ROOT%\*" (
+  echo.%~nx0: error: BITTOOLS_PROJECT_EXTERNALS_ROOT directory does not exist: "%BITTOOLS_PROJECT_EXTERNALS_ROOT%".
+  exit /b 255
+) >&2
+
 if not defined PROJECT_OUTPUT_ROOT                          call "%%~dp0canonical_path.bat" PROJECT_OUTPUT_ROOT                   "%%BITTOOLS_PROJECT_ROOT%%/_out"
 if not defined PROJECT_LOG_ROOT                             call "%%~dp0canonical_path.bat" PROJECT_LOG_ROOT                      "%%BITTOOLS_PROJECT_ROOT%%/.log"
 
