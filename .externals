@@ -9,9 +9,11 @@ repositories:
       - _config
       - Scripts/__init__
       - Scripts/Tools/__init__
-      - Scripts/Tools/std
       - Scripts/Tools/build
+      - Scripts/Tools/cleanup
       - Scripts/Tools/cmake
+      - Scripts/Tools/exec
+      - Scripts/Tools/std
       - Scripts/Tools/wmi
       - Scripts/Tools/xcopy
       - Utilities/bin/contools

@@ -1,3 +1,6 @@
+2024.10.28:
+* changed: __init__, _build, .externals: sync with `contools` project
+
 2023.11.23:
 * fixed: __init__: check externals directory existence before externals initialization
 
