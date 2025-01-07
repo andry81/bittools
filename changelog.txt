@@ -1,3 +1,6 @@
+2025.01.08:
+* changed: README.md: externals note update
+
 2024.10.28:
 * changed: __init__, _build, .externals: sync with `contools` project
 
