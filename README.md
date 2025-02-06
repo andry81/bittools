@@ -1,7 +1,7 @@
-> **Note** To checkout externals read the details here: https://github.com/andry81/externals
+> [!NOTE]
+> To checkout externals read the details here: https://github.com/andry81/externals
 
-<h4 align="center">
-Utilities for operations over bit stream files.<br/><br/>
+<p align="center">Utilities for operations over bit stream files.</p>
 
 ##
 
@@ -57,9 +57,9 @@ Utilities for operations over bit stream files.<br/><br/>
 </p>
 
 <p align="center">
-  <a href="https://github.com/andry81/bittools/blob/master/changelog.txt">Changelog</a>
-• <a href="https://github.com/andry81/bittools/blob/master/README_EN.txt">Readme</a>
-• <a href="#dependecies">Dependencies</a>
+  <a href="https://github.com/andry81/bittools/tree/HEAD/changelog.txt">Changelog</a>
+• <a href="https://github.com/andry81/bittools/tree/HEAD/README_EN.txt">Readme</a>
+• <a href="#dependencies">Dependencies</a>
 • <a href="#copyright-and-license"><img src="https://github.com/andry81-cache/gh-content-static-cache/raw/master/common/badges/license/mit-license.svg" valign="middle" alt="copyright and license" />&nbsp;Copyright and License</a>
 </p>
 
@@ -69,7 +69,7 @@ Utilities for operations over bit stream files.<br/><br/>
 
 ---
 
-## <a name="dependecies">Dependencies</a>
+## <a name="dependencies">Dependencies</a>
 
 * <a href="#"><img src="https://github.com/andry81-cache/gh-content-static-cache/raw/master/common/badges/static/REQUIRED.svg" valign="middle" alt="REQUIRED" /></a> https://github.com/andry81/tacklelib
 * <a href="#"><img src="https://github.com/andry81-cache/gh-content-static-cache/raw/master/common/badges/static/REQUIRED.svg" valign="middle" alt="REQUIRED" /></a> https://github.com/andry81/tacklelib--3dparty--boost
@@ -79,4 +79,4 @@ Utilities for operations over bit stream files.<br/><br/>
 
 ## <a name="copyright-and-license">Copyright and License</a>
 
-Code and documentation copyright 2021 Andrey Dibrov. Code released under [MIT License](https://github.com/andry81/bittools/blob/master/license.txt)
+Code and documentation copyright 2021 Andrey Dibrov. Code released under [MIT License](https://github.com/andry81/bittools/tree/HEAD/license.txt)
