@@ -7,6 +7,9 @@ set "BITTOOLS_PROJECT_ROOT_INIT0_DIR=%~dp0"
 rem cast to integer
 set /A NEST_LVL+=0
 
+rem Do not change code page
+if defined NO_CHCP set /A NO_CHCP+=0
+
 call "%%~dp0canonical_path_if_ndef.bat" BITTOOLS_PROJECT_ROOT                   "%%~dp0.."
 call "%%~dp0canonical_path_if_ndef.bat" BITTOOLS_PROJECT_EXTERNALS_ROOT         "%%BITTOOLS_PROJECT_ROOT%%/_externals"
 
@@ -30,7 +33,7 @@ rem init immediate external projects
 if exist "%BITTOOLS_PROJECT_EXTERNALS_ROOT%/contools/__init__/__init__.bat" (
   rem disable code page change in nested __init__
   set /A NO_CHCP+=1
-  call "%%BITTOOLS_PROJECT_EXTERNALS_ROOT%%/contools/__init__/__init__.bat" || exit /b
+  call "%%BITTOOLS_PROJECT_EXTERNALS_ROOT%%/contools/__init__/__init__.bat" -no_load_user_config || exit /b
   set /A NO_CHCP-=1
 )
 
@@ -43,14 +46,16 @@ if exist "%BITTOOLS_PROJECT_EXTERNALS_ROOT%/tacklelib/__init__/__init__.bat" (
   set /A NO_CHCP-=1
 )
 
-call "%%CONTOOLS_ROOT%%/build/mkdir_if_notexist.bat" "%BITTOOLS_PROJECT_OUTPUT_CONFIG_ROOT%" || exit /b
+call "%%CONTOOLS_BUILD_TOOLS_ROOT%%/mkdir_if_notexist.bat" "%BITTOOLS_PROJECT_OUTPUT_CONFIG_ROOT%" || exit /b
 
 if not defined LOAD_CONFIG_VERBOSE if %INIT_VERBOSE%0 NEQ 0 set LOAD_CONFIG_VERBOSE=1
 
-call "%%CONTOOLS_ROOT%%/build/load_config_dir.bat" %%* -gen_user_config "%%BITTOOLS_PROJECT_INPUT_CONFIG_ROOT%%" "%%BITTOOLS_PROJECT_OUTPUT_CONFIG_ROOT%%" || exit /b
+call "%%CONTOOLS_BUILD_TOOLS_ROOT%%/load_config_dir.bat" %%* -gen_user_config -- "%%BITTOOLS_PROJECT_INPUT_CONFIG_ROOT%%" "%%BITTOOLS_PROJECT_OUTPUT_CONFIG_ROOT%%" || exit /b
 
-call "%%CONTOOLS_ROOT%%/build/mkdir_if_notexist.bat" "%PROJECT_OUTPUT_ROOT%" || exit /b
+call "%%CONTOOLS_BUILD_TOOLS_ROOT%%/mkdir_if_notexist.bat" "%PROJECT_OUTPUT_ROOT%" || exit /b
 
-if defined CHCP call "%%CONTOOLS_ROOT%%/std/chcp.bat" %%CHCP%%
+if %NO_CHCP%0 EQU 0 (
+  if defined CHCP call "%%CONTOOLS_ROOT%%/std/chcp.bat" %%CHCP%%
+)
 
 exit /b 0

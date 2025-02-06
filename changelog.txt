@@ -1,3 +1,10 @@
+2025.02.06:
+* changed: __init__, _build, _config: sync with latest `contools` project
+* changed: *.bat: `CONTOOLS_UTILITIES_BIN_ROOT` variable renamed into `CONTOOLS_UTILS_BIN_ROOT`
+* changed: .externals, CMakeLists.txt: switch to `contools--utils` project
+* changed: _build: scripts improvements
+* changed: README_EN.txt: readme update
+
 2025.02.03:
 * changed: README.md: github markdown blockquotes update
 * changed: README.md: repo links update

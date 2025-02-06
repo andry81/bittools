@@ -1,22 +1,36 @@
 @echo off
 
+rem USAGE:
+rem   03_configure.bat <build-type> <cmake-cmdline>...
+rem 
+rem Description:
+rem   <build-type>: {<empty> | r | d | rd | rm | *}[!]
+rem     r   - Release
+rem     d   - Debug
+rem     rd  - ReleaseWidthDebug
+rem     rm  - MinSizeRelease
+rem     *   - all types from `CMAKE_CONFIG_TYPES` variable
+rem     !   - force, no build type consistency check
+
 setlocal
 
 call "%%~dp0__init__/script_init.bat" %%0 %%* || exit /b
 if %IMPL_MODE%0 EQU 0 exit /b
 
-call :CMDINT "%%CONTOOLS_ROOT%%/cmake/check_config_version.bat" ^
-  "%%CMAKE_CONFIG_VARS_SYSTEM_FILE_IN%%" "%%CMAKE_CONFIG_VARS_SYSTEM_FILE%%" ^
-  "%%CMAKE_CONFIG_VARS_USER_0_FILE_IN%%" "%%CMAKE_CONFIG_VARS_USER_0_FILE%%" || exit /b
+call "%%CONTOOLS_BUILD_TOOLS_ROOT%%/callsub.bat" "%%CONTOOLS_BUILD_TOOLS_ROOT%%/check_config_expiration.bat" ^
+  -optional_compare "%%CMAKE_CONFIG_VARS_SYSTEM_FILE_IN%%" "%%CMAKE_CONFIG_VARS_SYSTEM_FILE%%" || exit /b
+
+call "%%CONTOOLS_BUILD_TOOLS_ROOT%%/callsub.bat" "%%CONTOOLS_BUILD_TOOLS_ROOT%%/check_config_expiration.bat" ^
+  -optional_compare "%%CMAKE_CONFIG_VARS_USER_0_FILE_IN%%" "%%CMAKE_CONFIG_VARS_USER_0_FILE%%" || exit /b
 
 set /A NEST_LVL+=1
 
 call :MAIN %%*
-set LASTERROR=%ERRORLEVEL%
+set LAST_ERROR=%ERRORLEVEL%
 
 set /A NEST_LVL-=1
 
-exit /b %LASTERROR%
+exit /b %LAST_ERROR%
 
 :MAIN
 call "%%CONTOOLS_ROOT%%/cmake/parse_flags.bat" %%* || exit /b
@@ -26,6 +40,9 @@ if %__?FLAG_SHIFT% GTR 0 for /L %%i in (1,1,%__?FLAG_SHIFT%) do shift
 rem CAUTION: an empty value and `*` value has different meanings!
 rem
 set "CMAKE_BUILD_TYPE=%~1"
+
+set /A __?FLAG_SHIFT+=1
+
 set "CMAKE_BUILD_TYPE_WITH_FORCE=0"
 
 set CMAKE_IS_SINGLE_CONFIG=0
@@ -40,16 +57,16 @@ set CMAKE_IS_SINGLE_CONFIG=1
 
 :IGNORE_CMAKE_BUILD_TYPE
 rem preload configuration files only to make some checks
-call :CMD "%%CONTOOLS_ROOT%%/cmake/set_vars_from_files.bat" ^
+call "%%CONTOOLS_BUILD_TOOLS_ROOT%%/callln.bat" "%%CONTOOLS_ROOT%%/cmake/set_vars_from_files.bat" ^
   "%%CMAKE_CONFIG_VARS_SYSTEM_FILE:;=\;%%" "WIN" . . . ";" ^
   --exclude_vars_filter "BITTOOLS_PROJECT_ROOT" ^
   --ignore_late_expansion_statements || exit /b 255
 
 rem check if selected generator is a multiconfig generator
-call :CMD "%%CONTOOLS_ROOT%%/cmake/get_GENERATOR_IS_MULTI_CONFIG.bat" "%%CMAKE_GENERATOR%%" || exit /b 255
+call "%%CONTOOLS_BUILD_TOOLS_ROOT%%/callln.bat" "%%CONTOOLS_ROOT%%/cmake/get_GENERATOR_IS_MULTI_CONFIG.bat" "%%CMAKE_GENERATOR%%" || exit /b 255
 
 if %GENERATOR_IS_MULTI_CONFIG%0 NEQ 0 (
-  rem CMAKE_CONFIG_TYPES must not be defined
+  rem CMAKE_BUILD_TYPE must not be defined
   if %CMAKE_BUILD_TYPE_WITH_FORCE% NEQ 0 goto IGNORE_GENERATOR_IS_MULTI_CONFIG_CHECK
 
   if defined CMAKE_BUILD_TYPE (
@@ -57,7 +74,7 @@ if %GENERATOR_IS_MULTI_CONFIG%0 NEQ 0 (
     exit /b 255
   ) >&2
 ) else (
-  rem CMAKE_CONFIG_TYPES must be defined
+  rem CMAKE_BUILD_TYPE must be defined
   if not defined CMAKE_BUILD_TYPE (
     echo.%~nx0: error: declared cmake generator is not a multiconfig generator, CMAKE_BUILD_TYPE must be defined: CMAKE_GENERATOR="%CMAKE_GENERATOR%" CMAKE_BUILD_TYPE="%CMAKE_BUILD_TYPE%".
     exit /b 255
@@ -69,16 +86,18 @@ if %GENERATOR_IS_MULTI_CONFIG%0 NEQ 0 (
 if "%CMAKE_BUILD_TYPE%" == "*" (
   for %%i in (%CMAKE_CONFIG_TYPES:;= %) do (
     set "CMAKE_BUILD_TYPE=%%i"
-    call :CONFIGURE %%2 %%3 %%4 %%5 %%6 %%7 %%8 %%9 || exit /b
+    call "%%CONTOOLS_ROOT%%/std/setshift.bat" -exe %%__?FLAG_SHIFT%% CMAKE_CMD_LINE %%*
+    call :CONFIGURE || exit /b
   )
 ) else (
-  call :CONFIGURE %%2 %%3 %%4 %%5 %%6 %%7 %%8 %%9
+  call "%%CONTOOLS_ROOT%%/std/setshift.bat" -exe %%__?FLAG_SHIFT%% CMAKE_CMD_LINE %%*
+  call :CONFIGURE
 )
 
 exit /b
 
 :CONFIGURE
-call :CONFIGURE_IMPL %%*
+call :CONFIGURE_IMPL
 echo.
 exit /b
 
@@ -86,12 +105,11 @@ exit /b
 if not defined CMAKE_BUILD_TYPE goto INIT2
 if not defined CMAKE_CONFIG_ABBR_TYPES goto INIT2
 
-call :CMD "%%CONTOOLS_ROOT%%/cmake/update_build_type.bat" "%%CMAKE_BUILD_TYPE%%" "%%CMAKE_CONFIG_ABBR_TYPES%%" "%%CMAKE_CONFIG_TYPES%%" || exit /b
+call "%%CONTOOLS_BUILD_TOOLS_ROOT%%/callln.bat" "%%CONTOOLS_ROOT%%/cmake/update_build_type.bat" "%%CMAKE_BUILD_TYPE%%" "%%CMAKE_CONFIG_ABBR_TYPES%%" "%%CMAKE_CONFIG_TYPES%%" || exit /b
 
 :INIT2
 if %CMAKE_IS_SINGLE_CONFIG%0 NEQ 0 (
-  call :CMD "%%CONTOOLS_ROOT%%/cmake/check_build_type.bat" ^
-    "%%CMAKE_BUILD_TYPE%%" "%%CMAKE_CONFIG_TYPES%%" || exit /b
+  call "%%CONTOOLS_BUILD_TOOLS_ROOT%%/callln.bat" "%%CONTOOLS_ROOT%%/cmake/check_build_type.bat" "%%CMAKE_BUILD_TYPE%%" "%%CMAKE_CONFIG_TYPES%%" || exit /b
 )
 
 setlocal
@@ -102,7 +120,7 @@ if not defined CMAKE_BUILD_TYPE_ARG set "CMAKE_BUILD_TYPE_ARG=."
 rem escape all values for `--make_vars`
 set "PROJECT_ROOT_ESCAPED=%BITTOOLS_PROJECT_ROOT:\=/%"
 set "PROJECT_ROOT_ESCAPED=%PROJECT_ROOT_ESCAPED:;=\;%"
-call :CMD "%%CONTOOLS_ROOT%%/cmake/set_vars_from_files.bat" ^
+call "%%CONTOOLS_BUILD_TOOLS_ROOT%%/callln.bat" "%%CONTOOLS_ROOT%%/cmake/set_vars_from_files.bat" ^
   "%%CMAKE_CONFIG_VARS_SYSTEM_FILE:;=\;%%;%%CMAKE_CONFIG_VARS_USER_0_FILE:;=\;%%" "WIN" . "%%CMAKE_BUILD_TYPE_ARG%%" . ";" ^
   --make_vars ^
   "CMAKE_CURRENT_PACKAGE_NEST_LVL;CMAKE_CURRENT_PACKAGE_NEST_LVL_PREFIX;CMAKE_CURRENT_PACKAGE_NAME;CMAKE_CURRENT_PACKAGE_SOURCE_DIR;CMAKE_TOP_PACKAGE_NAME;CMAKE_TOP_PACKAGE_SOURCE_DIR" ^
@@ -139,59 +157,22 @@ call "%%CONTOOLS_ROOT%%/cmake/make_output_directories.bat" "%%CMAKE_BUILD_TYPE%%
 rem for safe parse
 setlocal ENABLEDELAYEDEXPANSION
 
-rem load command line from file
-set "CMAKE_CMD_LINE="
-for /F "usebackq eol=# tokens=* delims=" %%i in ("%CMDLINE_FILE_IN%") do (
-  if defined CMAKE_CMD_LINE (
-    set "CMAKE_CMD_LINE=!CMAKE_CMD_LINE! %%i"
-  ) else (
-    set "CMAKE_CMD_LINE=%%i"
-  )
-)
+rem load command line from file with expansion
+for /F "usebackq eol=# tokens=* delims=" %%i in (%CMDLINE_FILE_IN%) do call set "CMAKE_CMD_LINE=!CMAKE_CMD_LINE! %%i"
 
-if defined CMAKE_BUILD_TYPE (
-  set CMAKE_CMD_LINE=!CMAKE_CMD_LINE! -D "CMAKE_BUILD_TYPE=!CMAKE_BUILD_TYPE!"
-)
-if defined CMAKE_MAKE_PROGRAM (
-  set CMAKE_CMD_LINE=!CMAKE_CMD_LINE! -D "CMAKE_MAKE_PROGRAM=!CMAKE_MAKE_PROGRAM!"
-)
-if defined CMAKE_GENERATOR_TOOLSET (
-  set CMAKE_CMD_LINE=!CMAKE_CMD_LINE! -T "!CMAKE_GENERATOR_TOOLSET!"
-)
-if defined CMAKE_GENERATOR_PLATFORM (
-  set CMAKE_CMD_LINE=!CMAKE_CMD_LINE! -A "!CMAKE_GENERATOR_PLATFORM!"
-)
+if defined CMAKE_BUILD_TYPE         set CMAKE_CMD_LINE=!CMAKE_CMD_LINE! -D "CMAKE_BUILD_TYPE=!CMAKE_BUILD_TYPE!"
+if defined CMAKE_MAKE_PROGRAM       set CMAKE_CMD_LINE=!CMAKE_CMD_LINE! -D "CMAKE_MAKE_PROGRAM=!CMAKE_MAKE_PROGRAM!"
+if defined CMAKE_GENERATOR_TOOLSET  set CMAKE_CMD_LINE=!CMAKE_CMD_LINE! -T "!CMAKE_GENERATOR_TOOLSET!"
+if defined CMAKE_GENERATOR_PLATFORM set CMAKE_CMD_LINE=!CMAKE_CMD_LINE! -A "!CMAKE_GENERATOR_PLATFORM!"
 
 rem safe variable return over endlocal with delayed expansion
-for /F "eol=# tokens=* delims=" %%i in ("!CMAKE_CMD_LINE!") do (
-  endlocal
-  set "CMAKE_CMD_LINE=%%i"
-)
+for /F "tokens=* delims="eol^= %%i in ("!CMAKE_CMD_LINE!") do endlocal & set "CMAKE_CMD_LINE=%%i"
 
-call :CMD pushd "%%CMAKE_BUILD_DIR%%" && (
-  (
-    call :CMD cmake %CMAKE_CMD_LINE% %%2 %%3 %%4 %%5 %%6 %%7 %%8 %%9
-  ) || ( popd & goto CONFIGURE_END )
-  popd
-)
+call "%%CONTOOLS_BUILD_TOOLS_ROOT%%/callln.bat" pushd "%%CMAKE_BUILD_DIR%%" || goto CONFIGURE_END
+
+call "%%CONTOOLS_BUILD_TOOLS_ROOT%%/callln.bat" cmake%%CMAKE_CMD_LINE%%
+
+popd
 
 :CONFIGURE_END
-exit /b
-
-:CMD
-echo.^>%*
-echo.
-(
-  %*
-)
-exit /b
-
-:CMDINT
-if %INIT_VERBOSE%0 NEQ 0 (
-  echo.^>%*
-  echo.
-)
-(
-  %*
-)
 exit /b

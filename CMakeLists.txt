@@ -415,7 +415,7 @@ add_custom_command(
   PRE_BUILD
   COMMAND
     ${CMAKE_SHELL}
-    /C @"${CMAKE_CURRENT_LIST_DIR}/BuildTools/TargetProject.PreBuildStep.bat"
+    /C @"${CMAKE_CURRENT_LIST_DIR}/_externals/contools--utils/tools/TargetProject.PreBuildStep.bat"
     "${BITSYNC_TARGET}" "${CMAKE_CURRENT_LIST_DIR}/src/${BITSYNC_TARGET}" 1
   WORKING_DIRECTORY
     "${CMAKE_CURRENT_LIST_DIR}/src/${BITSYNC_TARGET}"

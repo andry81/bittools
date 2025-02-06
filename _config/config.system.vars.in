@@ -1,39 +1,48 @@
 #%% version: 1
 
 # FORMAT:
-#   [<attributes>] <variable>[:[<class_name>]]=<value>
+#   [<attributes>] <variable>[:<class_name>]=<value>
+#   [<attributes>] <variable>[:[<param0>][:[<param1>]]]=<value>
 #
 # <attributes>:           Variable space separated attributes: once | export | upath
 # <variable>:             Variable name corresponding to the regex: [_a-zA-Z][_a-zA-Z0-9]*
-# <class_name>:           class variant name: OSWIN | OSUNIX | BAT | SH
+# <class_name>:           Builtin class variant names: OSWIN | OSUNIX | BAT | SH
 #   OSWIN:                Apply on Windows system including cygwin/mingw/msys subsystems.
 #   OSUNIX:               Apply on Unix/Linux systems excluding cygwin/mingw/msys subsystems.
 #   BAT:                  Apply on Windows system when this file has loaded from the Windows batch script loader.
 #   SH:                   Apply on any system when this file has loaded from the Bash shell script loader.
 #
-# <value>:                Value with escaping and substitution support: `$/<escape_char>`, `$/{<variable>}`.
+# <param0>, <param1>:     Custom variable parameters.
+#                         Example:
+#                           <Param0>=OSWINXP
+#                           <Param1>=OS32
+#
+#                           Loads besides the builtin variable classes, these:
+#                           A:OSWINXP=...
+#                           B:OSWINXP:OS32=...
+#                           C::OS32=...
+#
+# <value>:                Value with substitution support: `%<variable>%`
 #                         Can start by the `"` quote character, but two quotes does remove only when exist on both ends of a value.
 #
 
-upath CMAKE_SHELL:BAT                       =$/{COMSPEC}
-upath CMAKE_SHELL:SH                        =$/{SHELL}
+upath CMAKE_SHELL:BAT                           =%COMSPEC%
+upath CMAKE_SHELL:SH                            =%SHELL%
 
-upath BITTOOLS_PROJECT_BUILD_ROOT           ="$/{BITTOOLS_PROJECT_ROOT}/_build"
+upath CMAKE_PROJECT_ROOT                        ="%BITTOOLS_PROJECT_ROOT%"
 
-upath CMAKE_PROJECT_ROOT                    ="$/{BITTOOLS_PROJECT_ROOT}"
+upath CMAKE_PROJECT_INPUT_CONFIG_ROOT           ="%BITTOOLS_PROJECT_INPUT_CONFIG_ROOT%/cmake"
+upath CMAKE_PROJECT_OUTPUT_CONFIG_ROOT          ="%BITTOOLS_PROJECT_OUTPUT_CONFIG_ROOT%/cmake"
 
-upath CMAKE_PROJECT_INPUT_CONFIG_ROOT       ="$/{BITTOOLS_PROJECT_INPUT_CONFIG_ROOT}/cmake"
-upath CMAKE_PROJECT_OUTPUT_CONFIG_ROOT      ="$/{BITTOOLS_PROJECT_OUTPUT_CONFIG_ROOT}/cmake"
+upath CMAKE_CONFIG_VARS_SYSTEM_FILE_IN          ="%CMAKE_PROJECT_INPUT_CONFIG_ROOT%/config.system.vars.in"
+upath CMAKE_CONFIG_VARS_SYSTEM_FILE             ="%CMAKE_PROJECT_OUTPUT_CONFIG_ROOT%/config.system.vars"
 
-upath CMAKE_CONFIG_VARS_SYSTEM_FILE_IN      ="$/{CMAKE_PROJECT_INPUT_CONFIG_ROOT}/config.system.vars.in"
-upath CMAKE_CONFIG_VARS_SYSTEM_FILE         ="$/{CMAKE_PROJECT_OUTPUT_CONFIG_ROOT}/config.system.vars"
-
-upath CMAKE_CONFIG_VARS_USER_0_FILE_IN      ="$/{CMAKE_PROJECT_INPUT_CONFIG_ROOT}/config.0.vars.in"
-upath CMAKE_CONFIG_VARS_USER_0_FILE         ="$/{CMAKE_PROJECT_OUTPUT_CONFIG_ROOT}/config.0.vars"
+upath CMAKE_CONFIG_VARS_USER_0_FILE_IN          ="%CMAKE_PROJECT_INPUT_CONFIG_ROOT%/config.0.vars.in"
+upath CMAKE_CONFIG_VARS_USER_0_FILE             ="%CMAKE_PROJECT_OUTPUT_CONFIG_ROOT%/config.0.vars"
 
 # CAUTION:
 #
 #   Is required for `set_vars_from_locked_file_pair.bat` script which does called from `cmake/set_vars_from_files.bat` script
 #   to be able to create variables with UTF-8 values.
 #
-once CHCP                                   =65001
+once CHCP                                       =65001
