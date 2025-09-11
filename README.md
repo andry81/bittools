@@ -10,7 +10,7 @@
     <img src="https://github.com/andry81-cache/andry81--gh-content-cache/raw/master/repo/andry81/bittools/badges/metrics/codefactor-grade.svg" valign="middle" alt="codefactor.io|quality" /></a>
 • <a href="https://www.codacy.com/gh/andry81/bittools/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=andry81/bittools&amp;utm_campaign=Badge_Grade">
     <img src="https://github.com/andry81-cache/andry81--gh-content-cache/raw/master/repo/andry81/bittools/badges/metrics/codacy-grade.svg" valign="middle" alt="codacy.com|quality" /></a>
-<!-- -- >
+<!-- - ->
 • <a href="https://lgtm.com/projects/g/andry81/bittools/context:python">
     <img src="https://github.com/andry81-cache/andry81--gh-content-cache/raw/master/repo/andry81/bittools/badges/metrics/lgtm-grade-python.svg" valign="middle" alt="lgtm.com|quality|python" /></a>
   <a href="https://lgtm.com/projects/g/andry81/bittools/alerts">
@@ -18,7 +18,7 @@
 <!-- -->
 </p>
 
-<!-- -- >
+<!-- now requires invite to log in - ->
 <p align="center">
   <a href="https://codeclimate.com/github/andry81/bittools/maintainability">
     <img src="https://github.com/andry81-cache/andry81--gh-content-cache/raw/master/repo/andry81/bittools/badges/metrics/codeclimate-maintainability.svg" valign="middle" alt="codeclimate.com|maintainability" /></a>

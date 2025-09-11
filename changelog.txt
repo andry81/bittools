@@ -1,3 +1,6 @@
+2025.09.11:
+* changed: README.md: global remove of code metric references from all project pages
+
 2025.04.29:
 * changed: global code improvement: `echo.` -> `echo;`, based on "Different `echo?...` variants" : https://github.com/andry81/contools/discussions/22
 
