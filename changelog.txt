@@ -1,3 +1,6 @@
+2025.04.29:
+* changed: global code improvement: `echo.` -> `echo;`, based on "Different `echo?...` variants" : https://github.com/andry81/contools/discussions/22
+
 2025.02.06:
 * changed: __init__, _build, _config: sync with latest `contools` project
 * changed: *.bat: `CONTOOLS_UTILITIES_BIN_ROOT` variable renamed into `CONTOOLS_UTILS_BIN_ROOT`

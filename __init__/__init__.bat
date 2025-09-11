@@ -10,23 +10,23 @@ set /A NEST_LVL+=0
 rem Do not change code page
 if defined NO_CHCP set /A NO_CHCP+=0
 
-call "%%~dp0canonical_path_if_ndef.bat" BITTOOLS_PROJECT_ROOT                   "%%~dp0.."
-call "%%~dp0canonical_path_if_ndef.bat" BITTOOLS_PROJECT_EXTERNALS_ROOT         "%%BITTOOLS_PROJECT_ROOT%%/_externals"
+call "%%~dp0canonical_path_if_ndef.bat" BITTOOLS_PROJECT_ROOT                  "%%~dp0.."
+call "%%~dp0canonical_path_if_ndef.bat" BITTOOLS_PROJECT_EXTERNALS_ROOT        "%%BITTOOLS_PROJECT_ROOT%%/_externals"
 
 if not exist "%BITTOOLS_PROJECT_EXTERNALS_ROOT%\*" (
-  echo.%~nx0: error: BITTOOLS_PROJECT_EXTERNALS_ROOT directory does not exist: "%BITTOOLS_PROJECT_EXTERNALS_ROOT%".
+  echo;%~nx0: error: BITTOOLS_PROJECT_EXTERNALS_ROOT directory does not exist: "%BITTOOLS_PROJECT_EXTERNALS_ROOT%".
   exit /b 255
 ) >&2
 
-call "%%~dp0canonical_path_if_ndef.bat" PROJECT_OUTPUT_ROOT                     "%%BITTOOLS_PROJECT_ROOT%%/_out"
-call "%%~dp0canonical_path_if_ndef.bat" PROJECT_LOG_ROOT                        "%%BITTOOLS_PROJECT_ROOT%%/.log"
+call "%%~dp0canonical_path_if_ndef.bat" PROJECT_OUTPUT_ROOT                    "%%BITTOOLS_PROJECT_ROOT%%/_out"
+call "%%~dp0canonical_path_if_ndef.bat" PROJECT_LOG_ROOT                       "%%BITTOOLS_PROJECT_ROOT%%/.log"
 
-call "%%~dp0canonical_path_if_ndef.bat" BITTOOLS_PROJECT_INPUT_CONFIG_ROOT      "%%BITTOOLS_PROJECT_ROOT%%/_config"
-call "%%~dp0canonical_path_if_ndef.bat" BITTOOLS_PROJECT_OUTPUT_CONFIG_ROOT     "%%PROJECT_OUTPUT_ROOT%%/config/bittools"
+call "%%~dp0canonical_path_if_ndef.bat" BITTOOLS_PROJECT_INPUT_CONFIG_ROOT     "%%BITTOOLS_PROJECT_ROOT%%/_config"
+call "%%~dp0canonical_path_if_ndef.bat" BITTOOLS_PROJECT_OUTPUT_CONFIG_ROOT    "%%PROJECT_OUTPUT_ROOT%%/config/bittools"
 
 rem retarget externals of an external project
 
-call "%%~dp0canonical_path_if_ndef.bat" CONTOOLS_PROJECT_EXTERNALS_ROOT         "%%BITTOOLS_PROJECT_EXTERNALS_ROOT%%"
+call "%%~dp0canonical_path_if_ndef.bat" CONTOOLS_PROJECT_EXTERNALS_ROOT        "%%BITTOOLS_PROJECT_EXTERNALS_ROOT%%"
 
 rem init immediate external projects
 

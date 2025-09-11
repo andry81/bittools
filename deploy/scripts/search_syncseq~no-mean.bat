@@ -5,7 +5,7 @@ setlocal
 set "FILE_IN=%~1"
 
 if "%FILE_IN%" == "" (
-  echo.%~nx0: error: FILE_IN is not defined.
+  echo;%~nx0: error: FILE_IN is not defined.
   exit /b 255
 ) >&2
 
@@ -30,7 +30,7 @@ goto FLAGS_LOOP
 
 :FLAGS_LOOP_END
 echo ^>%FILE_NAME_IN%.*%FILE_EXT_IN%
-echo.
+echo;
 
 call :CMD "%%~dp0bitsync.exe" /s "%%STREAM_BYTE_SIZE%%" gen "%%BITS_PER_BAUD%%" "%%FILE_IN%%" . || exit /b 255
 
@@ -43,7 +43,7 @@ for /F "usebackq eol= tokens=* delims=" %%i in (`dir /A:-D /B /O:N "%FILE_DIR_I
 exit /b 0
 
 :CMD
-echo.^>%*
+echo;^>%*
 (
   %*
 )
