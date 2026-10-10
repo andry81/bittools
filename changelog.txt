@@ -1,3 +1,6 @@
+2026.10.11:
+* changed: README.md: disable `tokei` badge because of almost always empty or invalid
+
 2026.06.06:
 * changed: __init__/__init__.bat: code cleanup
 

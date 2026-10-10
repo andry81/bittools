@@ -34,8 +34,10 @@
     <img src="https://github.com/andry81-cache/andry81--gh-content-cache/raw/master/repo/andry81/bittools/badges/metrics/shields-repo-size.svg" valign="middle" alt="GitHub repo size in bytes" /></a>
 • <a href="#">
     <img src="https://github.com/andry81-cache/andry81--gh-content-cache/raw/master/repo/andry81/bittools/badges/metrics/shields-code-size.svg" valign="middle" alt="code size in bytes" /></a>
+<!-- almost always empty or invalid - ->
 • <a href="https://github.com/XAMPPRocky/tokei">
     <img src="https://github.com/andry81-cache/andry81--gh-content-cache/raw/master/repo/andry81/bittools/badges/metrics/tokei-lines-of-code.svg" valign="middle" alt="lines of code by tokei.rs" /></a>
+<!-- -->
 </p>
 
 <p align="center">
